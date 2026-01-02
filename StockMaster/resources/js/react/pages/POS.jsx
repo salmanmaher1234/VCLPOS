@@ -242,8 +242,8 @@ export default function POS() {
                                 >
                                     {/* Stock Badge */}
                                     <div className={`absolute top-3 right-3 px-2 py-1 rounded-lg text-[10px] font-bold z-10 ${product.quantity > 10 ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400' :
-                                            product.quantity > 0 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400' :
-                                                'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400'
+                                        product.quantity > 0 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400' :
+                                            'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400'
                                         }`}>
                                         {product.quantity} left
                                     </div>
@@ -436,7 +436,7 @@ export default function POS() {
                         <button
                             onClick={handleCheckout}
                             disabled={cart.length === 0}
-                            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2"
+                            className="w-full bg-gradient-to-r from-orange-500 to-blue-600 hover:from-orange-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2"
                         >
                             <span>Pay Now</span>
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
