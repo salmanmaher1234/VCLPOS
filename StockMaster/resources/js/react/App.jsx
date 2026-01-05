@@ -104,7 +104,7 @@ export default function App() {
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
             <Sidebar activeItem={activeItem} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-            <div className="md:pl-64">
+            <div className="md:pl-60">
                 <Header isOpen={sidebarOpen} setIsOpen={setSidebarOpen} title={title} />
                 <Component />
             </div>
