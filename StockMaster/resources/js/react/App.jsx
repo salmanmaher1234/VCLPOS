@@ -67,7 +67,7 @@ export default function App() {
             case '/customers': return { title: 'Customers', activeItem: 'Customers' };
             case '/suppliers': return { title: 'Suppliers', activeItem: 'Suppliers' };
             case '/profile': return { title: 'Profile', activeItem: '' };
-            default: return { title: 'StockMaster', activeItem: '' };
+            default: return { title: 'StockMaster', activeItem: '' };rrr
         }
     };
 
