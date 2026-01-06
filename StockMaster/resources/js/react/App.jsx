@@ -58,16 +58,7 @@ export default function App() {
     // Page Helper to determine Title and Sidebar Active Item
     const getPageDetails = (path) => {
         switch (path) {
-            case '/dashboard': return { title: 'Dashboard', activeItem: 'Dashboard' };
-            case '/products': return { title: 'Products', activeItem: 'Products' };
-            case '/sales': return { title: 'Sales List', activeItem: 'Sales List' };
-            case '/returns': return { title: 'Returns', activeItem: 'Returns' };
-            case '/pos': return { title: 'POS System', activeItem: 'POS System' };
-            case '/adjustments': return { title: 'Adjustments', activeItem: 'Adjustments' };
-            case '/customers': return { title: 'Customers', activeItem: 'Customers' };
-            case '/suppliers': return { title: 'Suppliers', activeItem: 'Suppliers' };
-            case '/profile': return { title: 'Profile', activeItem: '' };
-            default: return { title: 'StockMaster', activeItem: '' };rrr
+
             case "/dashboard":
                 return { title: "Dashboard", activeItem: "Dashboard" };
             case "/products":

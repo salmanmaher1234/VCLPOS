@@ -38,7 +38,7 @@ export default function Header({ isOpen, setIsOpen, title }) {
                             <path d="M4 6H20M4 12H20M4 18H11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                     </button>
-                    <h1 className="text-xl font-semibold text-gray-900 dark:text-white capitalize">{title}</h1>
+                    <h1 className={`text-xl font-semibold text-gray-900 dark:text-white capitalize ${title === 'POS System' ? 'hidden sm:block opacity-0 w-0' : ''}`}>{title}</h1>
                 </div>
 
                 {/* Right - Actions & User Dropdown */}
