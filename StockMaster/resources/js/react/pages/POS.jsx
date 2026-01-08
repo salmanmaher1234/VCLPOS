@@ -14,6 +14,16 @@ export default function POS() {
     const [discountAmount, setDiscountAmount] = useState(0);
     const [notes, setNotes] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
+    const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+    const [toastMessage, setToastMessage] = useState("");
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState("");
 
@@ -136,10 +146,10 @@ export default function POS() {
         setCustomServicePrice("");
         setShowCustomServiceModal(false);
 
-        setSuccessMessage(
+        setToastMessage(
             `Custom service "${customServiceName}" added to cart`
         );
-        setTimeout(() => setSuccessMessage(""), 3000);
+        setTimeout(() => setToastMessage(""), 3000);
     };
 
     const updateCartQty = (productId, qty) => {
@@ -190,6 +200,35 @@ export default function POS() {
         }
 
         const token = localStorage.getItem("auth_token");
+        handleCheckout();
+    };
+
+    const handleCheckout = () => {
+
+        // Prepare data for preview/editing state
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const customerName = customers.find(c => c.id == selectedCustomer)?.name || 'Walk-in Customer';
+
+        setLastSaleData({
+            receiptNumber: "PENDING",
+            date: new Date().toLocaleDateString(),
+            items: [...cart],
+            subtotal: calculateSubtotal(),
+            tax: calculateTax(),
+            discount: discountAmount,
+            total: calculateTotal(),
+            amountPaid: parseFloat(paidAmount),
+            change: parseFloat(paidAmount) - calculateTotal(),
+            cashier: user.name || 'Staff',
+            customer: customerName
+        });
+
+        // Show "Ready to Finalize" modal
+        setShowCheckoutModal(true);
+    };
+
+    const processSale = async (shouldPrint) => {
+        const token = localStorage.getItem('auth_token');
 
         try {
             const response = await fetch("http://localhost:5000/api/pos", {
@@ -231,6 +270,7 @@ export default function POS() {
                 setTimeout(() => {
                     printReceipt();
                 }, 1000);
+                setShowCheckoutModal(false); // Close modal
 
                 // Reset form
                 setCart([]);
@@ -468,6 +508,8 @@ export default function POS() {
         setHoldReferenceName("");
         setSuccessMessage(`Order '${holdReferenceName}' held successfully`);
         setTimeout(() => setSuccessMessage(""), 3000);
+        setToastMessage("Sale put on hold");
+        setTimeout(() => setToastMessage(""), 3000);
     };
 
     const restoreOrder = (order) => {
@@ -834,6 +876,60 @@ export default function POS() {
                             />
                         </svg>
                         <span className="font-semibold">{successMessage}</span>
+        <main className="h-[calc(100vh-68px)] overflow-hidden p-1 sm:p-2 bg-gray-50 dark:bg-gray-900">
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+            `}} />
+            {/* Hidden Receipt Component */}
+            <Receipt data={lastSaleData} />
+
+
+            {/* Success/Finalize Modal */}
+            {showCheckoutModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 transform transition-all scale-100">
+                        <div className="text-center">
+                            <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Ready to Finalize?</h3>
+                            <p className="text-gray-500 dark:text-gray-400 mb-6">Review the bill or print to complete the sale.</p>
+
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={() => processSale(true)}
+                                    className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-gray-800 flex items-center justify-center gap-2"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                                    Print Receipt & Save
+                                </button>
+                                <button
+                                    onClick={() => processSale(false)}
+                                    className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700"
+                                >
+                                    Complete (No Print)
+                                </button>
+                                <button
+                                    onClick={() => setShowCheckoutModal(false)}
+                                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold py-3 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center gap-2"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                    Edit Bill
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Toast Feedback */}
+            {toastMessage && (
+                <div className="fixed top-20 right-4 z-50 animate-bounce-in">
+                    <div className="bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        <span className="font-semibold">{toastMessage}</span>
                     </div>
                 </div>
             )}
