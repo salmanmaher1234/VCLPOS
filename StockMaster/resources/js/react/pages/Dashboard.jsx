@@ -10,7 +10,6 @@ export default function Dashboard() {
         productsCount: 0,
         suppliersCount: 0
     });
-    const [recentSales, setRecentSales] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -39,7 +38,6 @@ export default function Dashboard() {
             if (response.ok) {
                 const data = await response.json();
                 setStats(data.stats);
-                setRecentSales(data.recentSales || []);
             }
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
@@ -148,60 +146,11 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            {/* Recent Sales Table */}
-            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm rounded-lg">
-                <div className="p-6">
-                    <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100 mb-4">
-                        Recent Sales
-                    </h3>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700">
-                                <tr>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                        Reference
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                        Customer
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                        Status
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                        Total
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                {recentSales.length > 0 ? (
-                                    recentSales.map((sale) => (
-                                        <tr key={sale.id}>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                                #{sale.id}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                                {sale.customer || 'Walk-in Customer'}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                                    {sale.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                                ${sale.total.toFixed(2)}
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="4" className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
-                                            No recent sales found.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+            {/* Dashboard Content */}
+            <div className="flex items-center justify-center p-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Welcome to StockMaster</h2>
+                    <p className="text-gray-500 dark:text-gray-400">Use the sidebar to navigate through your inventory and sales.</p>
                 </div>
             </div>
         </main>

@@ -14,7 +14,8 @@ export default function POS() {
     const [taxRate, setTaxRate] = useState(0);
     const [discountAmount, setDiscountAmount] = useState(0);
     const [notes, setNotes] = useState("");
-    const [successMessage, setSuccessMessage] = useState("");
+    const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+    const [toastMessage, setToastMessage] = useState("");
     const [currentTime, setCurrentTime] = useState(new Date());
 
     useEffect(() => {
@@ -142,10 +143,10 @@ export default function POS() {
         setCustomServicePrice("");
         setShowCustomServiceModal(false);
 
-        setSuccessMessage(
+        setToastMessage(
             `Custom service "${customServiceName}" added to cart`
         );
-        setTimeout(() => setSuccessMessage(""), 3000);
+        setTimeout(() => setToastMessage(""), 3000);
     };
 
     const updateCartQty = (productId, qty) => {
@@ -219,7 +220,7 @@ export default function POS() {
         });
 
         // Show "Ready to Finalize" modal
-        setSuccessMessage("Ready to finalize");
+        setShowCheckoutModal(true);
     };
 
     const processSale = async (shouldPrint) => {
@@ -266,7 +267,7 @@ export default function POS() {
                     }, 100);
                 }
 
-                setSuccessMessage(""); // Close modal
+                setShowCheckoutModal(false); // Close modal
 
                 // Show a small toast or just clear
                 // Reset form
@@ -320,8 +321,8 @@ export default function POS() {
         setDiscountAmount(0);
         setNotes("");
 
-        setSuccessMessage("Sale put on hold");
-        setTimeout(() => setSuccessMessage(""), 3000);
+        setToastMessage("Sale put on hold");
+        setTimeout(() => setToastMessage(""), 3000);
     };
 
     const retrieveSale = () => {
@@ -647,7 +648,7 @@ export default function POS() {
 
 
             {/* Success/Finalize Modal */}
-            {successMessage && (
+            {showCheckoutModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 transform transition-all scale-100">
                         <div className="text-center">
@@ -672,7 +673,7 @@ export default function POS() {
                                     Complete (No Print)
                                 </button>
                                 <button
-                                    onClick={() => setSuccessMessage('')}
+                                    onClick={() => setShowCheckoutModal(false)}
                                     className="w-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold py-3 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center gap-2"
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
@@ -680,6 +681,16 @@ export default function POS() {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Toast Feedback */}
+            {toastMessage && (
+                <div className="fixed top-20 right-4 z-50 animate-bounce-in">
+                    <div className="bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        <span className="font-semibold">{toastMessage}</span>
                     </div>
                 </div>
             )}
