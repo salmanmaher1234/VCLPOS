@@ -37,12 +37,21 @@ export default function POS() {
         `StockMaster-${Date.now().toString().slice(-6)}`
     );
 
-    // New states for Multi-Hold
-    const [parkedOrders, setParkedOrders] = useState([]);
+    const [lastSaleData, setLastSaleData] = useState(null);
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
+    const [parkedOrders, setParkedOrders] = useState(() => {
+        const saved = localStorage.getItem('pos_parked_orders');
+        return saved ? JSON.parse(saved) : [];
+    });
     const [showHoldModal, setShowHoldModal] = useState(false);
-    const [holdReferenceName, setHoldReferenceName] = useState("");
-    const [showRetrieveModal, setShowRetrieveModal] = useState(false);
-    const [isAutomating, setIsAutomating] = useState(false);
+    const [showPendingListModal, setShowPendingListModal] = useState(false);
+    const [holdReference, setHoldReference] = useState("");
+
+    const handlePrint = () => {
+        window.print();
+    };
+
+
 
     useEffect(() => {
         fetchProducts();
@@ -470,78 +479,56 @@ export default function POS() {
         setShowHoldModal(true);
     };
 
-    const confirmHoldOrder = () => {
-        if (!holdReferenceName.trim()) {
-            alert("Please enter a reference name (e.g., Table 4)");
-            return;
-        }
-
-        const newHoldOrder = {
-            id: "hold-" + Date.now(),
-            reference: holdReferenceName,
-            cart: cart,
-            customer: selectedCustomer,
-            taxRate: taxRate,
-            discountAmount: discountAmount,
-            timestamp: Date.now(),
+    const holdSale = (reference) => {
+        if (cart.length === 0) return;
+        const newOrder = {
+            id: Date.now().toString(),
+            reference: reference || `Order #${Date.now().toString().slice(-4)}`,
+            cart: [...cart],
+            selectedCustomer,
+            taxRate,
+            discountAmount,
             total: calculateTotal(),
-            itemCount: cart.reduce((acc, item) => acc + item.qty, 0),
+            timestamp: new Date().toISOString()
         };
+        const updatedOrders = [...parkedOrders, newOrder];
+        setParkedOrders(updatedOrders);
+        localStorage.setItem('pos_parked_orders', JSON.stringify(updatedOrders));
 
-        const updatedParkedOrders = [...parkedOrders, newHoldOrder];
-        setParkedOrders(updatedParkedOrders);
-        localStorage.setItem(
-            "parked_orders",
-            JSON.stringify(updatedParkedOrders)
-        );
-
-        // Reset current order
-        setCart([]);
-        setSelectedCustomer(null);
-        setPaidAmount("");
-        setTaxRate(0);
-        setDiscountAmount(0);
-        setNotes("");
-        setPaymentMethod("cash");
-
+        // Reset POS after parking
+        resetNewOrder();
         setShowHoldModal(false);
-        setHoldReferenceName("");
-        setSuccessMessage(`Order '${holdReferenceName}' held successfully`);
-        setTimeout(() => setSuccessMessage(""), 3000);
-        setToastMessage("Sale put on hold");
+        setHoldReference("");
+
+        setToastMessage("Sale added to pending bills");
         setTimeout(() => setToastMessage(""), 3000);
     };
 
-    const restoreOrder = (order) => {
-        // Check if current cart has items
-        if (cart.length > 0) {
-            if (
-                !window.confirm(
-                    "Restoring this order will overwrite current cart. Continue?"
-                )
-            ) {
-                return;
-            }
-        }
+    const retrieveSale = (orderId) => {
+        const order = parkedOrders.find(o => o.id === orderId);
+        if (!order) return;
 
         setCart(order.cart);
-        setSelectedCustomer(order.customer);
+        setSelectedCustomer(order.selectedCustomer);
         setTaxRate(order.taxRate || 0);
         setDiscountAmount(order.discountAmount || 0);
 
-        // Remove from parked
-        const updatedParkedOrders = parkedOrders.filter(
-            (o) => o.id !== order.id
-        );
-        setParkedOrders(updatedParkedOrders);
-        localStorage.setItem(
-            "parked_orders",
-            JSON.stringify(updatedParkedOrders)
-        );
+        const remaining = parkedOrders.filter(o => o.id !== orderId);
+        setParkedOrders(remaining);
+        localStorage.setItem('pos_parked_orders', JSON.stringify(remaining));
+        setShowPendingListModal(false);
 
-        setShowRetrieveModal(false);
-        setSuccessMessage(`Order '${order.reference}' retrieved`);
-        setTimeout(() => setSuccessMessage(""), 3000);
+        setToastMessage("Sale retrieved");
+        setTimeout(() => setToastMessage(""), 3000);
+    };
+
+    const deleteHeldSale = (orderId) => {
+        const remaining = parkedOrders.filter(o => o.id !== orderId);
+        setParkedOrders(remaining);
+        localStorage.setItem('pos_parked_orders', JSON.stringify(remaining));
+
+        setToastMessage("Pending bill deleted");
+        setTimeout(() => setToastMessage(""), 3000);
     };
 
     const deleteParkedOrder = (orderId) => {
@@ -1439,107 +1426,80 @@ export default function POS() {
                 {/* Left Side: Product Grid */}
                 <div className="w-full lg:w-2/3 xl:w-3/4 flex flex-col h-full gap-4">
                     {/* Top Header with Buttons */}
-                    <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm flex-shrink-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-800 dark:text-white">
-                                    StockMaster POS System
-                                </h2>
-                                <div className="flex items-center gap-3 mt-1">
-                                    <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                        <span className="text-blue-600 dark:text-blue-400">
-                                            Cashier:
-                                        </span>{" "}
-                                        {cashierName}
+                    <div className="bg-white dark:bg-gray-800 p-2 rounded-2xl shadow-sm flex-shrink-0">
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-2">
+                            {/* Logo & Info */}
+                            <div className="flex items-center gap-3 w-full md:w-auto overflow-hidden">
+                                <div className="flex items-center gap-3 text-sm w-full md:w-auto justify-between md:justify-start">
+                                    <div className="flex flex-col min-w-[70px]">
+                                        <span className="text-[9px] text-gray-500 dark:text-gray-400 uppercase font-bold leading-tight">Cashier</span>
+                                        <span className="font-medium text-gray-800 dark:text-white flex items-center gap-1 text-xs truncate">
+                                            <svg className="w-3 h-3 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                            {cashierName}
+                                        </span>
                                     </div>
-                                    <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                        <span className="text-green-600 dark:text-green-400">
-                                            Order:
-                                        </span>{" "}
-                                        {orderId}
+                                    <div className="flex flex-col min-w-[60px]">
+                                        <span className="text-[9px] text-gray-500 dark:text-gray-400 uppercase font-bold leading-tight">Order</span>
+                                        <span className="font-mono font-medium text-blue-600 dark:text-blue-400 text-xs">#{orderId.split('-')[1]}</span>
+                                    </div>
+                                    <div className="flex flex-col text-right min-w-[80px]">
+                                        <span className="text-[9px] text-gray-500 dark:text-gray-400 uppercase font-bold leading-tight">
+                                            {currentTime.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                        </span>
+                                        <span className="font-mono font-bold text-gray-800 dark:text-white text-xs">
+                                            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Action Buttons */}
-                            <div className="flex flex-wrap gap-2">
+                            {/* Actions */}
+                            <div className="flex items-center gap-1.5 w-full md:w-auto flex-wrap sm:flex-nowrap sm:overflow-x-auto no-scrollbar py-0.5 justify-end">
                                 <button
-                                    onClick={resetNewOrder}
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium rounded-xl transition-all shadow-sm hover:shadow-md"
+                                    onClick={() => setShowCustomServiceModal(true)}
+                                    title="Add Custom Item"
+                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-all font-bold text-[11px] shadow-sm whitespace-nowrap h-9.5"
                                 >
-                                    <svg
-                                        className="w-5 h-5"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                        />
-                                    </svg>
-                                    New Order
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                    <span>Custom</span>
+                                </button>
+
+                                <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 mx-0.5"></div>
+
+                                <button
+                                    onClick={() => setShowHoldModal(true)}
+                                    disabled={cart.length === 0}
+                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-50 dark:bg-orange-900/10 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-all font-bold text-[11px] disabled:opacity-50 whitespace-nowrap shadow-sm h-9.5"
+                                    title="Hold Sale"
+                                >
+                                    <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                                    <span>Hold</span>
                                 </button>
 
                                 <button
-                                    onClick={runAutomation}
-                                    disabled={isAutomating}
-                                    className={`inline-flex items-center gap-2 px-4 py-2.5 font-medium rounded-xl transition-all shadow-sm hover:shadow-md ${
-                                        isAutomating
-                                            ? "bg-gray-400 cursor-not-allowed text-white"
-                                            : "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white"
-                                    }`}
+                                    onClick={() => setShowPendingListModal(true)}
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all font-bold text-[11px] shadow-sm whitespace-nowrap h-9.5 border ${parkedOrders.length > 0
+                                        ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/40'
+                                        : 'bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                        }`}
+                                    title="View Pending Bills"
                                 >
-                                    {isAutomating ? (
-                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                        <svg
-                                            className="w-5 h-5"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
-                                            />
-                                        </svg>
-                                    )}
-                                    {isAutomating
-                                        ? "Running..."
-                                        : "Simulate Orders"}
-                                </button>
-
-                                <button
-                                    onClick={() =>
-                                        setShowCustomServiceModal(true)
-                                    }
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-medium rounded-xl transition-all shadow-sm hover:shadow-md"
-                                >
-                                    <svg
-                                        className="w-5 h-5"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        />
-                                    </svg>
-                                    Add Service
+                                    <div className="relative">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                                        {parkedOrders.length > 0 && (
+                                            <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span>Pending</span>
                                 </button>
 
                                 <button
                                     onClick={() => setShowReceiptPreview(true)}
                                     disabled={cart.length === 0}
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all shadow-sm hover:shadow-md"
+                                    className="px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-[11px] font-bold disabled:opacity-50 disabled:cursor-not-allowed shadow-sm whitespace-nowrap h-9.5"
                                 >
                                     <svg
                                         className="w-5 h-5"
@@ -1566,7 +1526,7 @@ export default function POS() {
                                 <button
                                     onClick={handleHoldOrder}
                                     disabled={cart.length === 0}
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all shadow-sm hover:shadow-md"
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 border border-blue-600 text-white hover:bg-blue-700 transition-all text-[11px] font-bold shadow-md shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap h-9.5"
                                 >
                                     <svg
                                         className="w-5 h-5"
@@ -2078,6 +2038,121 @@ export default function POS() {
                     </div>
                 </div>
             </div>
-        </main>
+            {/* Hold Order Reference Modal */}
+            {showHoldModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 max-w-sm w-full transform transition-all scale-100">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                                Hold Sale
+                            </h3>
+                            <button onClick={() => setShowHoldModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 font-sans">Enter a reference name to identify this bill later (e.g. Table 4, Customer Name).</p>
+                        <input
+                            type="text"
+                            value={holdReference}
+                            onChange={(e) => setHoldReference(e.target.value)}
+                            placeholder="Enter Reference/Name..."
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all mb-6 font-sans outline-none"
+                            autoFocus
+                            onKeyDown={(e) => e.key === 'Enter' && holdSale(holdReference)}
+                        />
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowHoldModal(false)}
+                                className="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-sans"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => holdSale(holdReference)}
+                                className="flex-1 px-4 py-3 rounded-xl bg-orange-600 text-white font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-200 dark:shadow-none font-sans"
+                            >
+                                Hold Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Pending Bills List Modal */}
+            {showPendingListModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 max-w-2xl w-full transform transition-all scale-100 max-h-[90vh] flex flex-col">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                                    Pending Bills
+                                </h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 font-sans mt-0.5">{parkedOrders.length} bills currently on hold</p>
+                            </div>
+                            <button onClick={() => setShowPendingListModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                            {parkedOrders.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-gray-300 dark:border-gray-600">
+                                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                                    </div>
+                                    <h4 className="text-gray-800 dark:text-gray-200 font-bold mb-1 font-sans">No pending bills</h4>
+                                    <p className="text-gray-500 dark:text-gray-400 text-sm font-sans">Any bills you put on hold will appear here.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {parkedOrders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).map((order) => (
+                                        <div key={order.id} className="group p-4 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-orange-500 dark:hover:border-orange-500 transition-all">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-gray-800 dark:text-white font-sans truncate max-w-[200px]">{order.reference}</span>
+                                                    <span className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-bold">
+                                                        {new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {order.cart.length} Items
+                                                    </span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-lg font-bold text-blue-600 dark:text-blue-400 font-sans">${order.total.toFixed(2)}</div>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2 mt-auto">
+                                                <button
+                                                    onClick={() => retrieveSale(order.id)}
+                                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-orange-600 text-white font-bold text-sm hover:bg-orange-700 transition-all shadow-md shadow-orange-100 dark:shadow-none"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" /></svg>
+                                                    Restore Bill
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteHeldSale(order.id)}
+                                                    className="w-12 h-10 flex items-center justify-center rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all"
+                                                    title="Delete"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+                            <button
+                                onClick={() => setShowPendingListModal(false)}
+                                className="w-full py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-all font-sans"
+                            >
+                                Close List
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </main >
     );
 }
