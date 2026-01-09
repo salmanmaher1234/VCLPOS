@@ -99,3 +99,7 @@ Route::get('/sales', [App\Http\Controllers\Api\SaleController::class, 'index'])-
 // Profile API
 Route::put('/profile', [App\Http\Controllers\Api\ProfileController::class, 'update'])->middleware('auth:sanctum');
 Route::put('/profile/password', [App\Http\Controllers\Api\ProfileController::class, 'updatePassword'])->middleware('auth:sanctum');
+
+// Returns API
+Route::get('/returns', [App\Http\Controllers\Api\ProductReturnController::class, 'index'])->middleware('auth:sanctum');
+Route::post('/returns', [App\Http\Controllers\Api\ProductReturnController::class, 'store'])->middleware('auth:sanctum');

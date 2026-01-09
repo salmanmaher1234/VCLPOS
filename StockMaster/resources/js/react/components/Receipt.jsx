@@ -139,7 +139,7 @@ export default function Receipt({ data }) {
 
                 <div className="text-center mt-4 text-xs font-bold">
                     <p>*** THANK YOU ***</p>
-                    <p>Powered by StockMaster</p>
+                    <p>Powered by VCL International</p>
                 </div>
             </div>
         </div>
