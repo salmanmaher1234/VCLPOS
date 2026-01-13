@@ -5,7 +5,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
     return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 w-full max-w-lg rounded-2xl shadow-2xl p-6 animate-scale-in" onClick={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-gray-800 w-full max-w-lg rounded-2xl shadow-2xl p-6 animate-scale-in max-h-[85vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-100 dark:border-gray-700">
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white">{title}</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
@@ -36,6 +36,11 @@ export default function Returns() {
     const [reason, setReason] = useState('');
     const [errors, setErrors] = useState({});
     const [processing, setProcessing] = useState(false);
+
+    // Custom Item State
+    const [isCustomItem, setIsCustomItem] = useState(false);
+    const [customProductName, setCustomProductName] = useState('');
+    const [customPrice, setCustomPrice] = useState('');
 
     // Rejection Modal State
     const [showRejectionModal, setShowRejectionModal] = useState(false);
@@ -103,8 +108,12 @@ export default function Returns() {
 
     const handleCreateReturn = async () => {
         setErrors({});
-        if (!selectedProduct) {
+        if (!selectedProduct && !isCustomItem) {
             setErrors(prev => ({ ...prev, product: 'Please select a product' }));
+            return;
+        }
+        if (isCustomItem && (!customProductName || !customPrice)) {
+            setErrors(prev => ({ ...prev, custom: 'Please enter product name and price' }));
             return;
         }
 
@@ -115,11 +124,14 @@ export default function Returns() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    product_id: selectedProduct.id,
-                    quantity: parseInt(quantity),
+                    product_id: isCustomItem ? null : selectedProduct.id,
+                    product_name: isCustomItem ? customProductName : null,
+                    price: isCustomItem ? customPrice : null,
+                    quantity: parseInt(quantity) || 1,
                     return_type: returnType,
                     customer_name: customerName,
                     reason
@@ -131,6 +143,9 @@ export default function Returns() {
                 setShowCreateModal(false);
                 setSearchTerm('');
                 setSelectedProduct(null);
+                setIsCustomItem(false);
+                setCustomProductName('');
+                setCustomPrice('');
                 setQuantity(1);
                 setCustomerName('');
                 setReason('');
@@ -138,11 +153,14 @@ export default function Returns() {
                 alert('Return submitted for approval!');
             } else {
                 if (data.errors) setErrors(data.errors);
-                else alert(data.message || 'Failed to process return');
+                else {
+                    console.error("Server Error:", data);
+                    alert(data.message || 'Failed to process return. Check console for details.');
+                }
             }
         } catch (error) {
             console.error(error);
-            alert('An error occurred');
+            alert(`An error occurred: ${error.message}`);
         } finally {
             setProcessing(false);
         }
@@ -349,47 +367,90 @@ export default function Returns() {
                         />
                     </div>
 
-                    {/* Product Search */}
-                    <div className="relative">
-                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Search Product</label>
+                    {/* Product Selection Mode */}
+                    <div className="flex items-center gap-2 mb-2">
                         <input
-                            type="text"
-                            className="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Type product name..."
-                            value={searchTerm}
+                            type="checkbox"
+                            checked={isCustomItem}
                             onChange={(e) => {
-                                setSearchTerm(e.target.value);
-                                if (!e.target.value) setSelectedProduct(null);
+                                setIsCustomItem(e.target.checked);
+                                setSelectedProduct(null);
+                                setSearchTerm('');
                             }}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
-                        {products.length > 0 && !selectedProduct && (
-                            <div className="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl mt-1 shadow-lg max-h-48 overflow-y-auto">
-                                {products.map(prod => (
-                                    <div
-                                        key={prod.id}
-                                        onClick={() => {
-                                            setSelectedProduct(prod);
-                                            setSearchTerm(prod.name);
-                                            setProducts([]);
-                                        }}
-                                        className="px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-800 dark:text-gray-200"
-                                    >
-                                        <div className="font-bold">{prod.name}</div>
-                                        <div className="text-xs text-gray-500">Stock: {prod.quantity} | ${prod.price}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        {errors.product && <p className="text-red-500 text-xs mt-1">{errors.product}</p>}
+                        <label className="text-sm font-bold text-gray-700 dark:text-gray-300">Custom Item (Not in Catalog)</label>
                     </div>
 
-                    {selectedProduct && (
-                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800 flex justify-between items-center">
-                            <div>
-                                <h4 className="font-bold text-blue-900 dark:text-blue-100">{selectedProduct.name}</h4>
-                                <p className="text-xs text-blue-700 dark:text-blue-300">Price: ${parseFloat(selectedProduct.price).toFixed(2)}</p>
+                    {!isCustomItem ? (
+                        <>
+                            {/* Product Search */}
+                            <div className="relative">
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Search Product</label>
+                                <input
+                                    type="text"
+                                    className="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Type product name..."
+                                    value={searchTerm}
+                                    onChange={(e) => {
+                                        setSearchTerm(e.target.value);
+                                        if (!e.target.value) setSelectedProduct(null);
+                                    }}
+                                />
+                                {products.length > 0 && !selectedProduct && (
+                                    <div className="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl mt-1 shadow-lg max-h-48 overflow-y-auto">
+                                        {products.map(prod => (
+                                            <div
+                                                key={prod.id}
+                                                onClick={() => {
+                                                    setSelectedProduct(prod);
+                                                    setSearchTerm(prod.name);
+                                                    setProducts([]);
+                                                }}
+                                                className="px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-800 dark:text-gray-200"
+                                            >
+                                                <div className="font-bold">{prod.name}</div>
+                                                <div className="text-xs text-gray-500">Stock: {prod.quantity} | ${prod.price}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {errors.product && <p className="text-red-500 text-xs mt-1">{errors.product}</p>}
                             </div>
-                            <button onClick={() => { setSelectedProduct(null); setSearchTerm(''); }} className="text-blue-500 hover:text-blue-700 text-xs underline">Change</button>
+
+                            {selectedProduct && (
+                                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800 flex justify-between items-center">
+                                    <div>
+                                        <h4 className="font-bold text-blue-900 dark:text-blue-100">{selectedProduct.name}</h4>
+                                        <p className="text-xs text-blue-700 dark:text-blue-300">Price: ${parseFloat(selectedProduct.price).toFixed(2)}</p>
+                                    </div>
+                                    <button onClick={() => { setSelectedProduct(null); setSearchTerm(''); }} className="text-blue-500 hover:text-blue-700 text-xs underline">Change</button>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <div className="space-y-3 p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded-xl border border-yellow-100 dark:border-yellow-800">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Product Name</label>
+                                <input
+                                    type="text"
+                                    value={customProductName}
+                                    onChange={(e) => setCustomProductName(e.target.value)}
+                                    className="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                    placeholder="Enter Item Name"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Price per Unit ($)</label>
+                                <input
+                                    type="number"
+                                    value={customPrice}
+                                    onChange={(e) => setCustomPrice(e.target.value)}
+                                    className="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            {errors.custom && <p className="text-red-500 text-xs mt-1">{errors.custom}</p>}
                         </div>
                     )}
 

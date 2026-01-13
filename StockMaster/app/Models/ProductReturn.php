@@ -9,6 +9,7 @@ class ProductReturn extends Model
     protected $fillable = [
         'user_id',
         'product_id',
+        'product_name',
         'customer_name',
         'quantity',
         'return_type',
