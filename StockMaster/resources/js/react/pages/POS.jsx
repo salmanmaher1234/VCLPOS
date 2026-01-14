@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Receipt from "../components/Receipt";
 
 export default function POS() {
     const [products, setProducts] = useState([]);
@@ -32,20 +33,36 @@ export default function POS() {
     const [customServiceName, setCustomServiceName] = useState("");
     const [customServicePrice, setCustomServicePrice] = useState("");
     const [showReceiptPreview, setShowReceiptPreview] = useState(false);
-    const [cashierName] = useState("Abdullah S.");
+    const [cashierName, setCashierName] = useState("Staff");
+    useEffect(() => {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+            try {
+                const user = JSON.parse(userData);
+                if (user.name) setCashierName(user.name);
+            } catch (e) { console.error("Error parsing user data", e); }
+        }
+    }, []);
+
     const [orderId] = useState(
-        `StockMaster-${Date.now().toString().slice(-6)}`
+        `POS-${Date.now().toString().slice(-6)}`
     );
 
     const [lastSaleData, setLastSaleData] = useState(null);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
     const [parkedOrders, setParkedOrders] = useState(() => {
-        const saved = localStorage.getItem('pos_parked_orders');
-        return saved ? JSON.parse(saved) : [];
+        try {
+            const saved = localStorage.getItem('pos_parked_orders');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            console.error("Failed to parse parked orders:", e);
+            return [];
+        }
     });
     const [showHoldModal, setShowHoldModal] = useState(false);
     const [showPendingListModal, setShowPendingListModal] = useState(false);
     const [holdReference, setHoldReference] = useState("");
+    const [isAutomating, setIsAutomating] = useState(false);
 
     const handlePrint = () => {
         window.print();
@@ -57,7 +74,7 @@ export default function POS() {
         fetchProducts();
         fetchCustomers();
         // Load parked orders
-        const storedParkedOrders = localStorage.getItem("parked_orders");
+        const storedParkedOrders = localStorage.getItem("pos_parked_orders");
         if (storedParkedOrders) {
             setParkedOrders(JSON.parse(storedParkedOrders));
         }
@@ -67,7 +84,7 @@ export default function POS() {
         try {
             const token = localStorage.getItem("auth_token");
             const response = await fetch(
-                "http://localhost:5000/api/products?per_page=1000",
+                "/api/products?per_page=1000",
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -78,7 +95,7 @@ export default function POS() {
 
             if (response.ok) {
                 const data = await response.json();
-                setProducts(data.data || []);
+                setProducts(data.data || []); // Handle pagination structure
             }
         } catch (error) {
             console.error("Error fetching products:", error);
@@ -91,7 +108,7 @@ export default function POS() {
         try {
             const token = localStorage.getItem("auth_token");
             const response = await fetch(
-                "http://localhost:5000/api/customers?per_page=1000",
+                "/api/customers?per_page=1000",
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -102,7 +119,7 @@ export default function POS() {
 
             if (response.ok) {
                 const data = await response.json();
-                setCustomers(data.data || []);
+                setCustomers(data.data || []); // Handle pagination structure
             }
         } catch (error) {
             console.error("Error fetching customers:", error);
@@ -209,10 +226,10 @@ export default function POS() {
         }
 
         const token = localStorage.getItem("auth_token");
-        handleCheckout();
+        initiateCheckout();
     };
 
-    const handleCheckout = () => {
+    const initiateCheckout = () => {
 
         // Prepare data for preview/editing state
         const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -240,7 +257,7 @@ export default function POS() {
         const token = localStorage.getItem('auth_token');
 
         try {
-            const response = await fetch("http://localhost:5000/api/pos", {
+            const response = await fetch("/api/pos", {
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -295,7 +312,7 @@ export default function POS() {
             } else {
                 alert(
                     "Error processing sale: " +
-                        (data.message || "Unknown error")
+                    (data.message || "Unknown error")
                 );
             }
         } catch (error) {
@@ -396,7 +413,7 @@ export default function POS() {
             paid_amount: parseFloat(finalTotal.toFixed(2)), // paid in full
             payment_method:
                 paymentMethods[
-                    Math.floor(Math.random() * paymentMethods.length)
+                Math.floor(Math.random() * paymentMethods.length)
                 ],
             tax_rate: randomTaxRate,
             discount_amount: randomDiscount,
@@ -425,7 +442,7 @@ export default function POS() {
 
                 try {
                     const response = await fetch(
-                        "http://localhost:5000/api/pos",
+                        "/api/pos",
                         {
                             method: "POST",
                             headers: {
@@ -440,8 +457,7 @@ export default function POS() {
                     if (response.ok) {
                         success++;
                         setSuccessMessage(
-                            `Sent order ${i + 1}/${count} (ID: ${
-                                orderData.order_id
+                            `Sent order ${i + 1}/${count} (ID: ${orderData.order_id
                             })`
                         );
                     } else {
@@ -489,6 +505,7 @@ export default function POS() {
             taxRate,
             discountAmount,
             total: calculateTotal(),
+            itemCount: cart.reduce((sum, item) => sum + item.qty, 0),
             timestamp: new Date().toISOString()
         };
         const updatedOrders = [...parkedOrders, newOrder];
@@ -496,7 +513,14 @@ export default function POS() {
         localStorage.setItem('pos_parked_orders', JSON.stringify(updatedOrders));
 
         // Reset POS after parking
-        resetNewOrder();
+        setCart([]);
+        setSelectedCustomer(null);
+        setPaidAmount("");
+        setTaxRate(0);
+        setDiscountAmount(0);
+        setNotes("");
+        setPaymentMethod("cash");
+
         setShowHoldModal(false);
         setHoldReference("");
 
@@ -504,16 +528,31 @@ export default function POS() {
         setTimeout(() => setToastMessage(""), 3000);
     };
 
-    const retrieveSale = (orderId) => {
-        const order = parkedOrders.find(o => o.id === orderId);
-        if (!order) return;
+    const confirmHoldOrder = () => {
+        holdSale(holdReference);
+    };
 
+    const deleteParkedOrder = (orderId) => {
+        if (!window.confirm("Are you sure you want to delete this held order?")) return;
+        const updatedParkedOrders = parkedOrders.filter(
+            (o) => o.id !== orderId
+        );
+        setParkedOrders(updatedParkedOrders);
+        localStorage.setItem(
+            "pos_parked_orders",
+            JSON.stringify(updatedParkedOrders)
+        );
+        setToastMessage("Pending bill deleted");
+        setTimeout(() => setToastMessage(""), 3000);
+    };
+
+    const restoreOrder = (order) => {
         setCart(order.cart);
         setSelectedCustomer(order.selectedCustomer);
         setTaxRate(order.taxRate || 0);
         setDiscountAmount(order.discountAmount || 0);
 
-        const remaining = parkedOrders.filter(o => o.id !== orderId);
+        const remaining = parkedOrders.filter(o => o.id !== order.id);
         setParkedOrders(remaining);
         localStorage.setItem('pos_parked_orders', JSON.stringify(remaining));
         setShowPendingListModal(false);
@@ -522,176 +561,146 @@ export default function POS() {
         setTimeout(() => setToastMessage(""), 3000);
     };
 
-    const deleteHeldSale = (orderId) => {
-        const remaining = parkedOrders.filter(o => o.id !== orderId);
-        setParkedOrders(remaining);
-        localStorage.setItem('pos_parked_orders', JSON.stringify(remaining));
-
-        setToastMessage("Pending bill deleted");
-        setTimeout(() => setToastMessage(""), 3000);
-    };
-
-    const deleteParkedOrder = (orderId) => {
-        if (!window.confirm("Are you sure you want to delete this held order?"))
-            return;
-
-        const updatedParkedOrders = parkedOrders.filter(
-            (o) => o.id !== orderId
-        );
-        setParkedOrders(updatedParkedOrders);
-        localStorage.setItem(
-            "parked_orders",
-            JSON.stringify(updatedParkedOrders)
-        );
-    };
-
     const printReceipt = () => {
-        const receiptWindow = window.open("", "_blank", "width=320,height=600");
-
         const selectedCustomerName = selectedCustomer
             ? customers.find(
-                  (c) => c.id.toString() === selectedCustomer.toString()
-              )?.name
+                (c) => c.id.toString() === selectedCustomer.toString()
+            )?.name
             : "WALK-IN";
+
+        // Create a hidden iframe for printing
+        let printFrame = document.getElementById("receipt-print-frame");
+        if (!printFrame) {
+            printFrame = document.createElement("iframe");
+            printFrame.id = "receipt-print-frame";
+            printFrame.style.display = "none";
+            document.body.appendChild(printFrame);
+        }
 
         const receiptContent = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>StockMaster Receipt</title>
+        <title>VCL Receipt</title>
         <style>
-          @media print {
-            @page { margin: 0; size: 80mm auto; }
-            body { margin: 0; padding: 0; }
-            * { box-sizing: border-box; }
+          @page { margin: 0; size: 80mm auto; }
+          body { 
+            margin: 0; 
+            padding: 5mm; 
+            font-family: 'Inter', -apple-system, sans-serif;
+            font-size: 11pt; 
+            line-height: 1.4;
+            color: #000;
           }
-          
-          body {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            width: 80mm;
-            margin: 0;
-            padding: 8px;
-            line-height: 1.2;
-          }
-          
           .receipt-header {
             text-align: center;
-            border-bottom: 1px dashed #000;
-            padding-bottom: 8px;
-            margin-bottom: 8px;
+            border-bottom: 2pt solid #000;
+            padding-bottom: 4mm;
+            margin-bottom: 4mm;
           }
-          
           .company-name {
-            font-weight: bold;
-            font-size: 14px;
+            font-weight: 800;
+            font-size: 16pt;
+            letter-spacing: -0.5pt;
+            margin-bottom: 1mm;
           }
-          
           .company-details {
-            font-size: 10px;
+            font-size: 9pt;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: #444;
           }
-          
           .receipt-info {
             display: flex;
             justify-content: space-between;
-            margin: 8px 0;
-            font-size: 11px;
+            margin: 4mm 0;
+            font-size: 10pt;
           }
-          
           .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 8px 0;
+            margin: 4mm 0;
           }
-          
           .items-table th {
             text-align: left;
-            border-bottom: 1px dashed #000;
-            padding: 4px 0;
-            font-weight: bold;
+            border-bottom: 1.5pt solid #000;
+            padding: 2mm 0;
+            font-size: 9pt;
+            font-weight: 800;
           }
-          
           .items-table td {
-            padding: 4px 0;
-            border-bottom: 1px dotted #ccc;
+            padding: 3mm 0;
+            border-bottom: 0.5pt solid #eee;
+            vertical-align: top;
           }
-          
-          .items-table tr:last-child td {
-            border-bottom: 1px dashed #000;
-          }
-          
-          .qty { width: 15%; text-align: center; }
-          .item { width: 50%; }
-          .price { width: 35%; text-align: right; }
+          .qty { width: 15%; font-weight: bold; }
+          .item { width: 50%; font-weight: 500; }
+          .price { width: 35%; text-align: right; font-weight: bold; }
           
           .totals {
-            margin-top: 12px;
-            border-top: 1px dashed #000;
-            padding-top: 8px;
+            margin-top: 5mm;
+            border-top: 2pt solid #000;
+            padding-top: 3mm;
           }
-          
           .total-row {
             display: flex;
             justify-content: space-between;
-            margin: 4px 0;
+            margin: 1.5mm 0;
+            font-size: 10pt;
           }
-          
           .grand-total {
-            font-weight: bold;
-            font-size: 14px;
-            border-top: 2px solid #000;
-            padding-top: 6px;
-            margin-top: 6px;
+            font-weight: 900;
+            font-size: 15pt;
+            border-top: 1pt solid #000;
+            padding-top: 2mm;
+            margin-top: 2mm;
           }
-          
           .payment-info {
-            margin-top: 12px;
-            border-top: 1px dashed #000;
-            padding-top: 8px;
-            font-size: 11px;
+            margin-top: 6mm;
+            padding: 3mm;
+            background: #f9f9f9;
+            border-radius: 2mm;
+            font-size: 10pt;
           }
-          
           .footer {
             text-align: center;
-            margin-top: 12px;
-            font-size: 10px;
-            border-top: 1px dashed #000;
-            padding-top: 8px;
+            margin-top: 8mm;
+            font-size: 9pt;
+            border-top: 1pt dashed #ccc;
+            padding-top: 5mm;
           }
-          
+          .brand-footer {
+            font-weight: 800;
+            font-size: 10pt;
+            margin-top: 3mm;
+            text-transform: uppercase;
+            letter-spacing: 1pt;
+          }
           .barcode {
             text-align: center;
-            margin: 12px 0;
-            font-family: 'Libre Barcode 39', monospace;
-            font-size: 24px;
-          }
-          
-          .service-badge {
-            background: #f0f0f0;
-            padding: 1px 4px;
-            border-radius: 2px;
-            font-size: 9px;
-            margin-left: 4px;
+            margin: 6mm 0;
+            font-weight: bold;
+            letter-spacing: 4pt;
           }
         </style>
       </head>
       <body>
         <div class="receipt-header">
-          <div class="company-name">StockMaster CORPORATION LTD.</div>
-          <div class="company-details">Streamlined Service Billing</div>
+          <div class="company-name">VCL INTERNATIONAL</div>
+          <div class="company-details">Streamlined POS Solutions</div>
           <div class="company-details">GSTIN: 07AABCU9603R1ZV</div>
         </div>
         
         <div class="receipt-info">
           <div>
-            <div>Order: ${orderId}</div>
-            <div>Date: ${new Date().toLocaleDateString()}</div>
-            <div>Time: ${new Date().toLocaleTimeString()}</div>
+            <strong>ORDER: ${orderId}</strong><br>
+            Date: ${new Date().toLocaleDateString()}<br>
+            Time: ${new Date().toLocaleTimeString()}
           </div>
-          <div>
-            <div>Cashier: ${cashierName}</div>
-            <div>Customer: ${selectedCustomerName}</div>
+          <div style="text-align: right">
+            Cashier: ${cashierName}<br>
+            Customer: ${selectedCustomerName}
           </div>
         </div>
         
@@ -704,116 +713,81 @@ export default function POS() {
             </tr>
           </thead>
           <tbody>
-            ${cart
-                .map(
-                    (item) => `
+            ${cart.map((item) => `
               <tr>
                 <td class="qty">${item.qty}</td>
                 <td class="item">
                   ${item.name}
-                  ${
-                      item.type === "service"
-                          ? '<span class="service-badge">SVC</span>'
-                          : ""
-                  }
+                  ${item.type === "service" ? '<div style="font-size: 8pt; color: #666;">(SERVICE)</div>' : ""}
                 </td>
                 <td class="price">$${(item.price * item.qty).toFixed(2)}</td>
               </tr>
-            `
-                )
-                .join("")}
+            `).join("")}
           </tbody>
         </table>
         
         <div class="totals">
           <div class="total-row">
-            <span>Subtotal:</span>
+            <span>Subtotal</span>
             <span>$${calculateSubtotal().toFixed(2)}</span>
           </div>
-          ${
-              taxRate > 0
-                  ? `
+          ${taxRate > 0 ? `
           <div class="total-row">
-            <span>Tax (${taxRate}%):</span>
+            <span>Tax (${taxRate}%)</span>
             <span>$${calculateTax().toFixed(2)}</span>
-          </div>
-          `
-                  : ""
-          }
-          ${
-              discountAmount > 0
-                  ? `
-          <div class="total-row">
-            <span>Discount:</span>
+          </div>` : ""}
+          ${discountAmount > 0 ? `
+          <div class="total-row" style="color: #d32f2f">
+            <span>Discount</span>
             <span>-$${discountAmount.toFixed(2)}</span>
-          </div>
-          `
-                  : ""
-          }
+          </div>` : ""}
           <div class="total-row grand-total">
-            <span>TOTAL:</span>
+            <span>TOTAL</span>
             <span>$${calculateTotal().toFixed(2)}</span>
           </div>
         </div>
         
         <div class="payment-info">
           <div class="total-row">
-            <span>Payment Method:</span>
-            <span>${paymentMethod.toUpperCase()}</span>
+            <span>Payment Method</span>
+            <span style="font-weight: bold">${paymentMethod.toUpperCase()}</span>
           </div>
           <div class="total-row">
-            <span>Amount Paid:</span>
-            <span>$${parseFloat(paidAmount || 0).toFixed(2)}</span>
+            <span>Amount Paid</span>
+            <span style="font-weight: bold">$${parseFloat(paidAmount || 0).toFixed(2)}</span>
           </div>
-          ${
-              paidAmount > 0 && parseFloat(paidAmount) > calculateTotal()
-                  ? `
-          <div class="total-row">
-            <span>Change Due:</span>
-            <span>$${(parseFloat(paidAmount) - calculateTotal()).toFixed(
-                2
-            )}</span>
-          </div>
-          `
-                  : ""
-          }
+          ${paidAmount > 0 && parseFloat(paidAmount) > calculateTotal() ? `
+          <div class="total-row" style="color: #2e7d32; font-weight: bold;">
+            <span>Change Due</span>
+            <span>$${(parseFloat(paidAmount) - calculateTotal()).toFixed(2)}</span>
+          </div>` : ""}
         </div>
         
-        ${
-            notes
-                ? `
-        <div class="footer">
-          <strong>Notes:</strong><br>
-          ${notes}
-        </div>
-        `
-                : ""
-        }
+        ${notes ? `<div class="footer"><strong>Notes:</strong><br>${notes}</div>` : ""}
         
         <div class="barcode">
           *${orderId}*
         </div>
         
         <div class="footer">
-          *** THANK YOU ***<br>
-          Powered by StockMaster<br>
-
+          *** THANK YOU FOR VISITING ***
+          <div class="brand-footer">Powered by VCL INTERNATIONAL</div>
         </div>
-        
+
         <script>
           window.onload = function() {
+            window.focus();
             window.print();
-            setTimeout(function() {
-              window.close();
-            }, 1000);
           };
         </script>
       </body>
       </html>
     `;
 
-        receiptWindow.document.write(receiptContent);
-        receiptWindow.document.close();
+        const frameDoc = printFrame.contentWindow.document;
+        frameDoc.open();
+        frameDoc.write(receiptContent);
+        frameDoc.close();
     };
 
     // Filter products
@@ -830,7 +804,7 @@ export default function POS() {
                     <div className="flex flex-col items-center gap-4">
                         <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                         <div className="text-gray-500 font-medium">
-                            Loading StockMaster POS System...
+                            Loading VCL POS System...
                         </div>
                     </div>
                 </div>
@@ -840,7 +814,7 @@ export default function POS() {
 
     const customerName = selectedCustomer
         ? customers.find((c) => c.id.toString() === selectedCustomer.toString())
-              ?.name
+            ?.name
         : "Walk-in Customer";
 
     return (
@@ -863,12 +837,9 @@ export default function POS() {
                             />
                         </svg>
                         <span className="font-semibold">{successMessage}</span>
-        <main className="h-[calc(100vh-68px)] overflow-hidden p-1 sm:p-2 bg-gray-50 dark:bg-gray-900">
-            <style dangerouslySetInnerHTML={{
-                __html: `
-                .no-scrollbar::-webkit-scrollbar { display: none; }
-                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-            `}} />
+                    </div>
+                </div>
+            )}
             {/* Hidden Receipt Component */}
             <Receipt data={lastSaleData} />
 
@@ -1023,151 +994,6 @@ export default function POS() {
                 </div>
             )}
 
-            {/* Hold Order Modal */}
-            {showHoldModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm">
-                        <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
-                            Hold Order
-                        </h2>
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Reference Name
-                            </label>
-                            <input
-                                type="text"
-                                value={holdReferenceName}
-                                onChange={(e) =>
-                                    setHoldReferenceName(e.target.value)
-                                }
-                                className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500"
-                                placeholder="e.g., Table 4, John Doe"
-                                autoFocus
-                                onKeyDown={(e) =>
-                                    e.key === "Enter" && confirmHoldOrder()
-                                }
-                            />
-                        </div>
-                        <div className="flex justify-end gap-3">
-                            <button
-                                onClick={() => setShowHoldModal(false)}
-                                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={confirmHoldOrder}
-                                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-                            >
-                                Hold Order
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Retrieve Order Modal */}
-            {showRetrieveModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-3xl max-h-[80vh] flex flex-col">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-gray-800 dark:text-white">
-                                Retrieve Parked Order
-                            </h2>
-                            <button
-                                onClick={() => setShowRetrieveModal(false)}
-                                className="text-gray-500 hover:text-gray-700"
-                            >
-                                <svg
-                                    className="w-6 h-6"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
-                                </svg>
-                            </button>
-                        </div>
-                        <div className="overflow-y-auto flex-1 custom-scrollbar">
-                            {parkedOrders.length === 0 ? (
-                                <div className="text-center py-8 text-gray-500">
-                                    No held orders found.
-                                </div>
-                            ) : (
-                                <table className="w-full text-left">
-                                    <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0">
-                                        <tr>
-                                            <th className="p-3 text-sm font-semibold text-gray-600 dark:text-gray-300">
-                                                Reference
-                                            </th>
-                                            <th className="p-3 text-sm font-semibold text-gray-600 dark:text-gray-300">
-                                                Items
-                                            </th>
-                                            <th className="p-3 text-sm font-semibold text-gray-600 dark:text-gray-300">
-                                                Total
-                                            </th>
-                                            <th className="p-3 text-sm font-semibold text-gray-600 dark:text-gray-300">
-                                                Time
-                                            </th>
-                                            <th className="p-3 text-sm font-semibold text-gray-600 dark:text-gray-300 text-right">
-                                                Actions
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                        {parkedOrders.map((order) => (
-                                            <tr
-                                                key={order.id}
-                                                className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                                            >
-                                                <td className="p-3 font-medium text-gray-800 dark:text-white">
-                                                    {order.reference}
-                                                </td>
-                                                <td className="p-3 text-gray-600 dark:text-gray-400">
-                                                    {order.itemCount} items
-                                                </td>
-                                                <td className="p-3 font-bold text-gray-800 dark:text-white">
-                                                    ${order.total.toFixed(2)}
-                                                </td>
-                                                <td className="p-3 text-gray-500 text-sm">
-                                                    {new Date(
-                                                        order.timestamp
-                                                    ).toLocaleTimeString()}
-                                                </td>
-                                                <td className="p-3 text-right space-x-2">
-                                                    <button
-                                                        onClick={() =>
-                                                            restoreOrder(order)
-                                                        }
-                                                        className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-                                                    >
-                                                        Restore
-                                                    </button>
-                                                    <button
-                                                        onClick={() =>
-                                                            deleteParkedOrder(
-                                                                order.id
-                                                            )
-                                                        }
-                                                        className="text-red-600 hover:text-red-800 font-medium text-sm"
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Receipt Preview Modal */}
             {showReceiptPreview && (
@@ -1201,11 +1027,11 @@ export default function POS() {
                         <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
                             {/* Header */}
                             <div className="text-center border-b border-gray-300 dark:border-gray-600 pb-4 mb-4">
-                                <div className="text-xl font-bold text-gray-800 dark:text-white">
-                                    StockMaster CORPORATION LTD.
+                                <div className="text-xl font-bold text-gray-800 dark:text-white uppercase tracking-tight">
+                                    VCL INTERNATIONAL
                                 </div>
-                                <div className="text-sm text-gray-600 dark:text-gray-400">
-                                    Streamlined Service Billing
+                                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">
+                                    Streamlined POS Solutions
                                 </div>
                                 <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
                                     GSTIN: 07AABCU9603R1ZV
@@ -1358,7 +1184,7 @@ export default function POS() {
                                     </div>
                                     {paidAmount > 0 &&
                                         parseFloat(paidAmount) >
-                                            calculateTotal() && (
+                                        calculateTotal() && (
                                             <div className="col-span-2">
                                                 <div className="text-sm font-medium text-green-700 dark:text-green-400">
                                                     Change Due
@@ -1386,8 +1212,8 @@ export default function POS() {
                                 </div>
                             )}
 
-                            <div className="text-center text-sm text-gray-500 dark:text-gray-400 border-t border-gray-300 dark:border-gray-600 pt-4">
-                                Thank you for your business!
+                            <div className="text-center text-[10px] font-bold text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-4 uppercase tracking-widest">
+                                Powered by VCL INTERNATIONAL
                             </div>
                         </div>
 
@@ -1422,148 +1248,73 @@ export default function POS() {
                 </div>
             )}
 
-            <div className="flex flex-col lg:flex-row gap-4 h-full">
-                {/* Left Side: Product Grid */}
-                <div className="w-full lg:w-2/3 xl:w-3/4 flex flex-col h-full gap-4">
+            <div className="flex flex-col lg:flex-row gap-2 h-full">
+                {/* Left Side: Product Grid Area */}
+                <div className="w-full lg:w-[68%] xl:w-[72%] flex flex-col h-full gap-2">
                     {/* Top Header with Buttons */}
-                    <div className="bg-white dark:bg-gray-800 p-2 rounded-2xl shadow-sm flex-shrink-0">
-                        <div className="flex flex-col md:flex-row items-center justify-between gap-2">
-                            {/* Logo & Info */}
-                            <div className="flex items-center gap-3 w-full md:w-auto overflow-hidden">
-                                <div className="flex items-center gap-3 text-sm w-full md:w-auto justify-between md:justify-start">
-                                    <div className="flex flex-col min-w-[70px]">
-                                        <span className="text-[9px] text-gray-500 dark:text-gray-400 uppercase font-bold leading-tight">Cashier</span>
-                                        <span className="font-medium text-gray-800 dark:text-white flex items-center gap-1 text-xs truncate">
-                                            <svg className="w-3 h-3 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-4 rounded-2xl shadow-sm flex-shrink-0 border border-white dark:border-gray-700/50">
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-1.5 w-full md:w-auto">
+                                <div className="flex items-center gap-6 px-5 py-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider leading-none mb-1.5">Cashier</span>
+                                        <span className="font-bold text-gray-800 dark:text-gray-100 text-sm truncate max-w-[120px]">
                                             {cashierName}
                                         </span>
                                     </div>
-                                    <div className="flex flex-col min-w-[60px]">
-                                        <span className="text-[9px] text-gray-500 dark:text-gray-400 uppercase font-bold leading-tight">Order</span>
-                                        <span className="font-mono font-medium text-blue-600 dark:text-blue-400 text-xs">#{orderId.split('-')[1]}</span>
+                                    <div className="h-8 w-px bg-gray-200 dark:bg-gray-600"></div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider leading-none mb-1.5">Order ID</span>
+                                        <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-sm">#{orderId.split('-')[1]}</span>
                                     </div>
-                                    <div className="flex flex-col text-right min-w-[80px]">
-                                        <span className="text-[9px] text-gray-500 dark:text-gray-400 uppercase font-bold leading-tight">
-                                            {currentTime.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                    <div className="h-8 w-px bg-gray-200 dark:bg-gray-600"></div>
+                                    <div className="flex flex-col text-right">
+                                        <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider leading-none mb-1.5">
+                                            {currentTime.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' })}
                                         </span>
-                                        <span className="font-mono font-bold text-gray-800 dark:text-white text-xs">
-                                            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                        <span className="font-mono font-black text-gray-800 dark:text-gray-100 text-sm">
+                                            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Actions */}
-                            <div className="flex items-center gap-1.5 w-full md:w-auto flex-wrap sm:flex-nowrap sm:overflow-x-auto no-scrollbar py-0.5 justify-end">
+                            <div className="flex items-center gap-1 w-full md:w-auto flex-wrap sm:flex-nowrap justify-end">
                                 <button
                                     onClick={() => setShowCustomServiceModal(true)}
                                     title="Add Custom Item"
-                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-all font-bold text-[11px] shadow-sm whitespace-nowrap h-9.5"
+                                    className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-purple-50 dark:bg-purple-900/10 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition-all font-bold text-xs h-10"
                                 >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                    <span>Custom</span>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                    <span>Custom Item</span>
                                 </button>
 
-                                <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 mx-0.5"></div>
-
-                                <button
-                                    onClick={() => setShowHoldModal(true)}
-                                    disabled={cart.length === 0}
-                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-50 dark:bg-orange-900/10 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-all font-bold text-[11px] disabled:opacity-50 whitespace-nowrap shadow-sm h-9.5"
-                                    title="Hold Sale"
-                                >
-                                    <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
-                                    <span>Hold</span>
-                                </button>
-
-                                <button
-                                    onClick={() => setShowPendingListModal(true)}
-                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all font-bold text-[11px] shadow-sm whitespace-nowrap h-9.5 border ${parkedOrders.length > 0
-                                        ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/40'
-                                        : 'bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                        }`}
-                                    title="View Pending Bills"
-                                >
-                                    <div className="relative">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                                        {parkedOrders.length > 0 && (
-                                            <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
-                                            </span>
-                                        )}
-                                    </div>
-                                    <span>Pending</span>
-                                </button>
+                                <div className="h-4 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
 
                                 <button
                                     onClick={() => setShowReceiptPreview(true)}
                                     disabled={cart.length === 0}
-                                    className="px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-[11px] font-bold disabled:opacity-50 disabled:cursor-not-allowed shadow-sm whitespace-nowrap h-9.5"
+                                    className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 transition-all duration-200 text-xs font-bold disabled:opacity-50 h-10 shadow-sm"
                                 >
-                                    <svg
-                                        className="w-5 h-5"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                        />
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                        />
-                                    </svg>
                                     Preview
                                 </button>
 
                                 <button
                                     onClick={handleHoldOrder}
                                     disabled={cart.length === 0}
-                                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 border border-blue-600 text-white hover:bg-blue-700 transition-all text-[11px] font-bold shadow-md shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap h-9.5"
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition-all duration-200 text-xs font-bold h-10 shadow-lg shadow-blue-500/20"
                                 >
-                                    <svg
-                                        className="w-5 h-5"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        />
-                                    </svg>
                                     Hold
                                 </button>
 
                                 <button
-                                    onClick={() => setShowRetrieveModal(true)}
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-medium rounded-xl transition-all shadow-sm hover:shadow-md relative"
+                                    onClick={() => setShowPendingListModal(true)}
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 transition-all duration-200 font-bold text-xs h-10 shadow-lg shadow-indigo-500/20"
                                 >
-                                    <svg
-                                        className="w-5 h-5"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                        />
-                                    </svg>
                                     Retrieve
                                     {parkedOrders.length > 0 && (
-                                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white dark:border-gray-800">
+                                        <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 rounded-full border border-white ml-1 animate-pulse">
                                             {parkedOrders.length}
                                         </span>
                                     )}
@@ -1572,94 +1323,75 @@ export default function POS() {
                                 <button
                                     onClick={printReceipt}
                                     disabled={cart.length === 0}
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all shadow-sm hover:shadow-md"
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-orange-600 text-white hover:bg-orange-700 active:scale-95 transition-all duration-200 text-xs font-bold h-10 shadow-lg shadow-orange-500/20"
                                 >
-                                    <svg
-                                        className="w-5 h-5"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                                        />
-                                    </svg>
                                     Print
                                 </button>
                             </div>
                         </div>
 
-                        {/* Search Bar */}
-                        <div className="relative">
+                        {/* Search Bar Area */}
+                        <div className="relative mb-4">
                             <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg
-                                    className="h-5 w-5 text-gray-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                                    />
-                                </svg>
+                                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                             </span>
                             <input
                                 type="text"
-                                className="block w-full pl-10 pr-3 py-3 border-none ring-1 ring-gray-200 dark:ring-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200"
-                                placeholder="Scan barcode or search products..."
+                                className="block w-full pl-10 pr-4 py-3.5 border border-gray-200 dark:border-gray-700 rounded-2xl bg-white/50 dark:bg-gray-800/50 dark:text-white placeholder-gray-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-all duration-300 text-sm shadow-sm outline-none"
+                                placeholder="Search products by name or code..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                autoFocus
                             />
                         </div>
-                    </div>
 
-                    {/* Products Grid Area */}
-                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-20">
-                            {filteredProducts.map((product) => (
-                                <div
-                                    key={product.id}
-                                    onClick={() =>
-                                        product.quantity > 0 &&
-                                        addToCart(product)
-                                    }
-                                    className={`group relative bg-white dark:bg-gray-800 rounded-2xl p-3 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer border border-transparent hover:border-blue-500 ${
-                                        product.quantity <= 0
-                                            ? "opacity-60 grayscale"
-                                            : ""
-                                    }`}
-                                >
-                                    {/* Stock Badge */}
+                        {/* Products Grid Area */}
+                        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-20">
+                                {filteredProducts.map((product) => (
                                     <div
-                                        className={`absolute top-3 right-3 px-2 py-1 rounded-lg text-[10px] font-bold z-10 ${
-                                            product.quantity > 10
-                                                ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400"
-                                                : product.quantity > 0
-                                                ? "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400"
-                                                : "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400"
-                                        }`}
+                                        key={product.id}
+                                        onClick={() => product.quantity > 0 && addToCart(product)}
+                                        className={`group relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl p-2 shadow-sm hover:shadow-2xl hover:-translate-y-1 active:scale-95 transition-all duration-300 cursor-pointer border border-white dark:border-gray-700/50 hover:border-blue-500/50 ${product.quantity <= 0 ? "opacity-50 grayscale" : ""}`}
                                     >
-                                        {product.quantity} left
-                                    </div>
+                                        {/* Stock Badge */}
+                                        <div className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[8px] font-black z-10 shadow-sm ${product.quantity > 10 ? "bg-green-500 text-white" : "bg-red-500 text-white animate-pulse"}`}>
+                                            {product.quantity}
+                                        </div>
 
-                                    {/* Product Image */}
-                                    <div className="aspect-square mb-3 bg-gray-50 dark:bg-gray-700 rounded-xl overflow-hidden flex items-center justify-center relative group-hover:bg-gray-100 dark:group-hover:bg-gray-600 transition-colors">
-                                        {product.image ? (
-                                            <img
-                                                src={`/storage/${product.image}`}
-                                                alt={product.name}
-                                                className="w-full h-full object-cover mix-blend-multiply dark:mix-blend-normal"
-                                            />
-                                        ) : (
+                                        {/* Product Image */}
+                                        <div className="aspect-square mb-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center relative">
+                                            {product.image ? (
+                                                <img
+                                                    src={`/storage/${product.image}`}
+                                                    alt={product.name}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                            )}
+                                        </div>
+
+                                        {/* Product Info */}
+                                        <div className="overflow-hidden">
+                                            <h3 className="font-bold text-gray-800 dark:text-white text-[11px] leading-tight mb-0.5 truncate">
+                                                {product.name}
+                                            </h3>
+                                            <p className="text-[9px] text-gray-500 dark:text-gray-400 mb-1 font-mono">
+                                                {product.code}
+                                            </p>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[11px] font-black text-blue-600 dark:text-blue-400">
+                                                    ${parseFloat(product.price).toFixed(2)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {filteredProducts.length === 0 && (
+                                    <div className="col-span-full py-12 flex flex-col items-center justify-center text-gray-400">
+                                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
                                             <svg
-                                                className="w-12 h-12 text-gray-300 dark:text-gray-500"
+                                                className="w-8 h-8"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -1667,104 +1399,35 @@ export default function POS() {
                                                 <path
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
-                                                    strokeWidth={1}
-                                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                    strokeWidth={2}
+                                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                                                 />
                                             </svg>
-                                        )}
-                                        {/* Add Overlay */}
-                                        {product.quantity > 0 && (
-                                            <div className="absolute inset-0 bg-blue-600/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                <div className="bg-blue-600 text-white p-2 rounded-full shadow-lg transform scale-0 group-hover:scale-100 transition-transform">
-                                                    <svg
-                                                        className="w-6 h-6"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth={2}
-                                                            d="M12 4v16m8-8H4"
-                                                        />
-                                                    </svg>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Product Info */}
-                                    <div>
-                                        <h3 className="font-bold text-gray-800 dark:text-white text-sm leading-tight mb-1 truncate">
-                                            {product.name}
-                                        </h3>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                                            {product.code}
-                                        </p>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                                                $
-                                                {parseFloat(
-                                                    product.price
-                                                ).toFixed(2)}
-                                            </span>
                                         </div>
+                                        <p className="text-lg font-medium">
+                                            No products found
+                                        </p>
+                                        <p className="text-sm">
+                                            Try searching for something else
+                                        </p>
                                     </div>
-                                </div>
-                            ))}
-                            {filteredProducts.length === 0 && (
-                                <div className="col-span-full py-12 flex flex-col items-center justify-center text-gray-400">
-                                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                                        <svg
-                                            className="w-8 h-8"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                                            />
-                                        </svg>
-                                    </div>
-                                    <p className="text-lg font-medium">
-                                        No products found
-                                    </p>
-                                    <p className="text-sm">
-                                        Try searching for something else
-                                    </p>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Right Side: Cart Panel */}
-                <div className="w-full lg:w-1/3 xl:w-1/4 h-full flex flex-col bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+                {/* Right Side: Billing Section */}
+                <div className="w-full lg:w-[32%] xl:w-[28%] h-full flex flex-col bg-white/90 dark:bg-gray-800/90 backdrop-blur-2xl rounded-xl shadow-2xl border border-white dark:border-gray-700/50 overflow-hidden">
                     {/* Customer Header */}
-                    <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
-                        <div className="flex items-center justify-between mb-3">
-                            <h2 className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                                <svg
-                                    className="w-5 h-5 text-blue-500"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                                    />
-                                </svg>
+                    <div className="p-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+                        <div className="flex items-center justify-between mb-2">
+                            <h2 className="font-bold text-gray-800 dark:text-white flex items-center gap-2 text-sm uppercase tracking-tight">
+                                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
                                 Current Sale
                             </h2>
-                            <span className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 text-xs font-bold px-2 py-1 rounded-lg">
-                                {cart.length} Items
+                            <span className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
+                                {cart.length} ITEMS
                             </span>
                         </div>
                         <select
@@ -1772,7 +1435,7 @@ export default function POS() {
                             onChange={(e) =>
                                 setSelectedCustomer(e.target.value || null)
                             }
-                            className="w-full text-sm border-gray-200 dark:border-gray-600 rounded-xl focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                            className="w-full text-xs border-gray-200 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white py-1.5"
                         >
                             <option value="">Walk-in Customer</option>
                             {customers.map((customer) => (
@@ -1784,59 +1447,59 @@ export default function POS() {
                     </div>
 
                     {/* Cart Items List */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
                         {cart.length === 0 ? (
                             <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-60">
-                                <svg
-                                    className="w-16 h-16 mb-4 stroke-1"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                                    />
-                                </svg>
-                                <p className="font-medium">Cart is empty</p>
-                                <p className="text-sm">
-                                    Select products to begin
-                                </p>
+                                <div className="w-20 h-20 mb-4 bg-gray-50 dark:bg-gray-800/50 rounded-full flex items-center justify-center border-2 border-dashed border-gray-200 dark:border-gray-700">
+                                    <svg
+                                        className="w-10 h-10 text-gray-300 dark:text-gray-600"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={1.5}
+                                            d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                                        />
+                                    </svg>
+                                </div>
+                                <p className="font-bold text-gray-400 dark:text-gray-500 text-sm uppercase tracking-widest">Cart is empty</p>
+                                <p className="text-[10px] text-gray-400 mt-1">Select products to start a sale</p>
                             </div>
                         ) : (
                             cart.map((item) => (
                                 <div
                                     key={item.id}
-                                    className={`group flex flex-col gap-2 p-3 rounded-xl border ${
-                                        item.type === "service"
-                                            ? "border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/20"
-                                            : "border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800"
-                                    } hover:shadow-md transition-all`}
+                                    className={`group flex flex-col gap-1 p-1.5 rounded-xl border ${item.type === "service"
+                                        ? "border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10"
+                                        : "border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800"
+                                        } hover:shadow-sm transition-all`}
                                 >
                                     <div className="flex justify-between items-start">
                                         <div className="flex-1">
-                                            <div className="flex items-center gap-2">
-                                                <h4 className="font-bold text-gray-800 dark:text-white text-sm line-clamp-1">
+                                            <div className="flex items-center gap-1.5">
+                                                <h4 className="font-bold text-gray-800 dark:text-white text-xs line-clamp-1">
                                                     {item.name}
                                                 </h4>
                                                 {item.type === "service" && (
-                                                    <span className="px-1.5 py-0.5 text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded">
-                                                        SERVICE
+                                                    <span className="px-1.5 py-0.5 text-[8px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded">
+                                                        SVC
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="text-xs text-gray-500 mt-0.5">
+                                            <div className="text-[9px] text-gray-500 mt-0.5">
                                                 ${item.price.toFixed(2)} / unit
                                             </div>
                                         </div>
-                                        <div className="font-bold text-gray-900 dark:text-white">
+                                        <div className="font-bold text-gray-900 dark:text-white text-xs">
                                             $
                                             {(item.price * item.qty).toFixed(2)}
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-lg p-1">
+                                    <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-lg p-0.5">
                                         <button
                                             onClick={() =>
                                                 updateCartQty(
@@ -1844,21 +1507,9 @@ export default function POS() {
                                                     item.qty - 1
                                                 )
                                             }
-                                            className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-white dark:hover:bg-gray-600 rounded-md transition-colors"
+                                            className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-white dark:hover:bg-gray-600 rounded-md active:scale-90 transition-all"
                                         >
-                                            <svg
-                                                className="w-4 h-4"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M20 12H4"
-                                                />
-                                            </svg>
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
                                         </button>
                                         <input
                                             type="number"
@@ -1869,7 +1520,7 @@ export default function POS() {
                                                     e.target.value
                                                 )
                                             }
-                                            className="w-12 text-center bg-transparent border-none p-0 text-sm font-bold text-gray-800 dark:text-white focus:ring-0"
+                                            className="w-10 text-center bg-transparent border-none p-0 text-[12px] font-bold text-gray-800 dark:text-white focus:ring-0"
                                         />
                                         <button
                                             onClick={() =>
@@ -1878,21 +1529,9 @@ export default function POS() {
                                                     item.qty + 1
                                                 )
                                             }
-                                            className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-green-500 hover:bg-white dark:hover:bg-gray-600 rounded-md transition-colors"
+                                            className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-green-500 hover:bg-white dark:hover:bg-gray-600 rounded-md active:scale-90 transition-all"
                                         >
-                                            <svg
-                                                className="w-4 h-4"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M12 4v16m8-8H4"
-                                                />
-                                            </svg>
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                                         </button>
                                     </div>
                                 </div>
@@ -1901,55 +1540,49 @@ export default function POS() {
                     </div>
 
                     {/* Checkout Section - Fixed Bottom */}
-                    <div className="border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+                    <div className="border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
                         {/* Summary Calculations */}
-                        <div className="space-y-1 mb-4 text-sm">
-                            <div className="flex justify-between text-gray-500">
-                                <span>Subtotal</span>
-                                <span>${calculateSubtotal().toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between items-center group">
-                                <label className="text-gray-500 border-b border-dashed border-gray-300 cursor-help">
-                                    Tax (%)
-                                </label>
-                                <div className="flex items-center w-20">
-                                    <input
-                                        type="number"
-                                        value={taxRate}
-                                        onChange={(e) =>
-                                            setTaxRate(
-                                                parseFloat(e.target.value) || 0
-                                            )
-                                        }
-                                        className="w-full text-right p-0 border-none bg-transparent hover:bg-gray-50 dark:hover:bg-gray-700 text-sm focus:ring-0 text-gray-500"
-                                    />
+                        <div className="space-y-1.5 mb-3">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/30 px-2 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                        Tax
+                                    </label>
+                                    <div className="flex items-center">
+                                        <input
+                                            type="number"
+                                            value={taxRate}
+                                            onChange={(e) =>
+                                                setTaxRate(
+                                                    parseFloat(e.target.value) || 0
+                                                )
+                                            }
+                                            className="w-10 text-right p-0 border-none bg-transparent font-bold text-xs focus:ring-0 text-gray-700 dark:text-gray-200"
+                                        />
+                                        <span className="text-gray-400 text-[10px] ml-0.5 font-bold">%</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between bg-red-50/30 dark:bg-red-900/10 px-2 py-1.5 rounded-lg border border-red-100/50 dark:border-red-900/20">
+                                    <label className="text-[9px] font-black text-red-400 uppercase tracking-widest">
+                                        Disc
+                                    </label>
+                                    <div className="flex items-center shrink-0">
+                                        <span className="text-red-400 text-[10px] mr-0.5 font-bold">$</span>
+                                        <input
+                                            type="number"
+                                            value={discountAmount}
+                                            onChange={(e) =>
+                                                setDiscountAmount(
+                                                    parseFloat(e.target.value) || 0
+                                                )
+                                            }
+                                            className="w-12 text-right p-0 border-none bg-transparent font-bold text-xs focus:ring-0 text-red-600 dark:text-red-400"
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                            <div className="flex justify-between items-center group">
-                                <label className="text-gray-500 border-b border-dashed border-gray-300 cursor-help">
-                                    Discount ($)
-                                </label>
-                                <div className="flex items-center w-20">
-                                    <input
-                                        type="number"
-                                        value={discountAmount}
-                                        onChange={(e) =>
-                                            setDiscountAmount(
-                                                parseFloat(e.target.value) || 0
-                                            )
-                                        }
-                                        className="w-full text-right p-0 border-none bg-transparent hover:bg-gray-50 dark:hover:bg-gray-700 text-sm focus:ring-0 text-red-500"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex justify-between items-center pt-3 mt-2 border-t border-gray-100 dark:border-gray-700">
-                                <span className="font-bold text-gray-800 dark:text-white text-lg">
-                                    Total
-                                </span>
-                                <span className="font-bold text-2xl text-blue-600 dark:text-blue-400">
-                                    ${calculateTotal().toFixed(2)}
-                                </span>
-                            </div>
+
                         </div>
 
                         {/* Payment Inputs */}
@@ -2003,37 +1636,17 @@ export default function POS() {
                                 </div>
                             )}
 
-                        {/* Notes */}
-                        <div className="mb-3">
-                            <textarea
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                                placeholder="Add notes (optional)"
-                                className="w-full text-xs p-2 rounded-lg border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 resize-none"
-                                rows="2"
-                            />
-                        </div>
 
                         {/* Complete Button */}
                         <button
                             onClick={handleCheckout}
                             disabled={cart.length === 0}
-                            className="w-full bg-gradient-to-r from-orange-500 to-blue-600 hover:from-orange-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2"
+                            className="w-full bg-gradient-to-r from-orange-500 to-blue-600 hover:from-orange-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-black py-4 rounded-2xl shadow-xl shadow-orange-500/30 active:scale-[0.97] transition-all duration-300 flex items-center justify-center gap-3 border border-white/20"
                         >
-                            <span>Complete Sale</span>
-                            <svg
-                                className="w-5 h-5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M17 8l4 4m0 0l-4 4m4-4H3"
-                                />
-                            </svg>
+                            <span className="text-sm tracking-tight">Complete Sale (${calculateTotal().toFixed(2)})</span>
+                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                            </div>
                         </button>
                     </div>
                 </div>
@@ -2122,14 +1735,14 @@ export default function POS() {
                                             </div>
                                             <div className="flex gap-2 mt-auto">
                                                 <button
-                                                    onClick={() => retrieveSale(order.id)}
+                                                    onClick={() => restoreOrder(order)}
                                                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-orange-600 text-white font-bold text-sm hover:bg-orange-700 transition-all shadow-md shadow-orange-100 dark:shadow-none"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" /></svg>
                                                     Restore Bill
                                                 </button>
                                                 <button
-                                                    onClick={() => deleteHeldSale(order.id)}
+                                                    onClick={() => deleteParkedOrder(order.id)}
                                                     className="w-12 h-10 flex items-center justify-center rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all"
                                                     title="Delete"
                                                 >
@@ -2153,6 +1766,6 @@ export default function POS() {
                     </div>
                 </div>
             )}
-        </main >
+        </main>
     );
 }

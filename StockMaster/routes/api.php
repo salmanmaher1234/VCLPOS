@@ -103,3 +103,4 @@ Route::put('/profile/password', [App\Http\Controllers\Api\ProfileController::cla
 // Returns API
 Route::get('/returns', [App\Http\Controllers\Api\ProductReturnController::class, 'index'])->middleware('auth:sanctum');
 Route::post('/returns', [App\Http\Controllers\Api\ProductReturnController::class, 'store'])->middleware('auth:sanctum');
+Route::put('/returns/{id}/status', [App\Http\Controllers\Api\ProductReturnController::class, 'updateStatus'])->middleware('auth:sanctum');
