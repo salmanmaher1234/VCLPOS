@@ -100,7 +100,10 @@ Route::get('/sales', [App\Http\Controllers\Api\SaleController::class, 'index'])-
 Route::put('/profile', [App\Http\Controllers\Api\ProfileController::class, 'update'])->middleware('auth:sanctum');
 Route::put('/profile/password', [App\Http\Controllers\Api\ProfileController::class, 'updatePassword'])->middleware('auth:sanctum');
 
-// Returns API
+// Returns API (Customer Returns)
 Route::get('/returns', [App\Http\Controllers\Api\ProductReturnController::class, 'index'])->middleware('auth:sanctum');
 Route::post('/returns', [App\Http\Controllers\Api\ProductReturnController::class, 'store'])->middleware('auth:sanctum');
 Route::put('/returns/{id}/status', [App\Http\Controllers\Api\ProductReturnController::class, 'updateStatus'])->middleware('auth:sanctum');
+
+// Purchase Returns API (Supplier Returns)
+Route::middleware('auth:sanctum')->apiResource('purchase-returns', App\Http\Controllers\Api\PurchaseReturnController::class);
