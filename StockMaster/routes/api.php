@@ -107,3 +107,6 @@ Route::put('/returns/{id}/status', [App\Http\Controllers\Api\ProductReturnContro
 
 // Purchase Returns API (Supplier Returns)
 Route::middleware('auth:sanctum')->apiResource('purchase-returns', App\Http\Controllers\Api\PurchaseReturnController::class);
+
+// Purchases API (Supplier Stock In)
+Route::middleware('auth:sanctum')->apiResource('purchases', App\Http\Controllers\Api\PurchaseController::class);
