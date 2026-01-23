@@ -93,6 +93,20 @@ Route::middleware('auth:sanctum')->apiResource('adjustments', App\Http\Controlle
 // POS API
 Route::middleware('auth:sanctum')->post('/pos', [App\Http\Controllers\Api\PosController::class, 'store']);
 
+// Sales List API
+Route::get('/sales', [App\Http\Controllers\Api\SaleController::class, 'index'])->middleware('auth:sanctum');
+
 // Profile API
 Route::put('/profile', [App\Http\Controllers\Api\ProfileController::class, 'update'])->middleware('auth:sanctum');
 Route::put('/profile/password', [App\Http\Controllers\Api\ProfileController::class, 'updatePassword'])->middleware('auth:sanctum');
+
+// Returns API (Customer Returns)
+Route::get('/returns', [App\Http\Controllers\Api\ProductReturnController::class, 'index'])->middleware('auth:sanctum');
+Route::post('/returns', [App\Http\Controllers\Api\ProductReturnController::class, 'store'])->middleware('auth:sanctum');
+Route::put('/returns/{id}/status', [App\Http\Controllers\Api\ProductReturnController::class, 'updateStatus'])->middleware('auth:sanctum');
+
+// Purchase Returns API (Supplier Returns)
+Route::middleware('auth:sanctum')->apiResource('purchase-returns', App\Http\Controllers\Api\PurchaseReturnController::class);
+
+// Purchases API (Supplier Stock In)
+Route::middleware('auth:sanctum')->apiResource('purchases', App\Http\Controllers\Api\PurchaseController::class);
