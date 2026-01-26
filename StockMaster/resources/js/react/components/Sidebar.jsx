@@ -11,6 +11,8 @@ export default function Sidebar({ activeItem = 'Dashboard', isOpen, setIsOpen })
 
     const inventoryItems = [
         { name: 'Products', href: '/react/products' },
+        { name: 'Purchase Returns', href: '/react/purchase-returns' },
+        { name: 'Purchases', href: '/react/purchases' },
         { name: 'Adjustments', href: '/react/adjustments' },
     ];
 

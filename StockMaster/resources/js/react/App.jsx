@@ -19,6 +19,8 @@ import Adjustments from "./pages/Adjustments";
 import Customers from "./pages/Customers";
 import Suppliers from "./pages/Suppliers";
 import ProfilePage from "./pages/ProfilePage";
+import PurchaseReturns from "./pages/PurchaseReturns";
+import Purchases from "./pages/Purchases"; // NEW
 
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
@@ -67,6 +69,10 @@ export default function App() {
                 return { title: "Sales List", activeItem: "Sales List" };
             case "/returns":
                 return { title: "Returns", activeItem: "Returns" };
+            case "/purchase-returns":
+                return { title: "Purchase Returns", activeItem: "Purchase Returns" };
+            case "/purchases":
+                return { title: "Purchase Orders", activeItem: "Purchases" };
             case "/pos":
                 return { title: "POS System", activeItem: "POS System" };
             case "/adjustments":
@@ -111,6 +117,12 @@ export default function App() {
             break;
         case "/returns":
             Component = Returns;
+            break;
+        case "/purchase-returns":
+            Component = PurchaseReturns;
+            break;
+        case "/purchases":
+            Component = Purchases;
             break;
         case "/pos":
             Component = POS;
