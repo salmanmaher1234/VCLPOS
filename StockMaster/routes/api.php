@@ -110,3 +110,7 @@ Route::middleware('auth:sanctum')->apiResource('purchase-returns', App\Http\Cont
 
 // Purchases API (Supplier Stock In)
 Route::middleware('auth:sanctum')->apiResource('purchases', App\Http\Controllers\Api\PurchaseController::class);
+
+// Expenses API
+Route::get('/expense-categories', [App\Http\Controllers\Api\ExpenseController::class, 'categories'])->middleware('auth:sanctum');
+Route::middleware('auth:sanctum')->apiResource('expenses', App\Http\Controllers\Api\ExpenseController::class);
