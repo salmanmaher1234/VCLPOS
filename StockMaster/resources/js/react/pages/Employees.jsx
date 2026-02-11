@@ -102,11 +102,11 @@ export default function Employees() {
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                        <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Workforce Center</h1>
+                        <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Employees Management</h1>
                         <p className="text-gray-500 font-medium tracking-tight">Enterprise POS Management Suite</p>
                     </div>
                     <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-orange-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl">
-                        RECRUIT STAFF
+                        Add Employee
                     </button>
                 </div>
 
@@ -305,8 +305,8 @@ function AttendanceTab() {
                                 </td>
                                 <td className="p-8">
                                     <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${r.status === 'present' ? 'bg-green-100 text-green-700' :
-                                            r.status === 'absent' ? 'bg-red-100 text-red-700' :
-                                                'bg-orange-100 text-orange-700'
+                                        r.status === 'absent' ? 'bg-red-100 text-red-700' :
+                                            'bg-orange-100 text-orange-700'
                                         }`}>
                                         {r.status}
                                     </span>
@@ -563,7 +563,7 @@ function EmployeeModal({ onClose, onSave, employee = null }) {
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[130] p-4">
             <div className="bg-white rounded-[4rem] w-full max-w-4xl p-12 overflow-y-auto max-h-[90vh] shadow-2xl">
-                <div className="flex justify-between items-center mb-12"><h2 className="text-4xl font-black uppercase tracking-tighter">Personnel Master</h2><button onClick={onClose} className="bg-gray-100 p-4 rounded-full"><XCircle /></button></div>
+                <div className="flex justify-between items-center mb-12"><h2 className="text-4xl font-black uppercase tracking-tighter"></h2><button onClick={onClose} className="bg-gray-100 p-4 rounded-full"><XCircle /></button></div>
                 <form onSubmit={async e => { e.preventDefault(); setSubmitting(true); const errs = await onSave(form); if (errs) setErrors(errs); setSubmitting(false); }} className="space-y-10">
                     <div className="grid grid-cols-2 gap-8">
                         <div>
