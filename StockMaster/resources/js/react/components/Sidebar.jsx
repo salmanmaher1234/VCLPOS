@@ -4,9 +4,6 @@ import Link from './Link';
 export default function Sidebar({ activeItem = 'Dashboard', isOpen, setIsOpen }) {
     const menuItems = [
         { name: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', href: '/react/dashboard' },
-        { name: 'POS System', icon: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z', href: '/react/pos' },
-        { name: 'Sales List', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', href: '/react/sales' },
-        { name: 'Sales Returns', icon: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6', href: '/react/sales-returns' },
     ];
 
     const inventoryItems = [
@@ -23,6 +20,7 @@ export default function Sidebar({ activeItem = 'Dashboard', isOpen, setIsOpen })
     ];
 
     const peopleItems = [
+        { name: 'Employees', href: '/react/employees' },
         { name: 'Customers', href: '/react/customers' },
         { name: 'Suppliers', href: '/react/suppliers' },
     ];
@@ -91,7 +89,10 @@ export default function Sidebar({ activeItem = 'Dashboard', isOpen, setIsOpen })
                                     <Link
                                         key={item.name}
                                         href={item.href}
-                                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                        className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg ${activeItem === item.name
+                                            ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-200'
+                                            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                                            }`}
                                     >
                                         {item.name}
                                     </Link>
@@ -109,7 +110,10 @@ export default function Sidebar({ activeItem = 'Dashboard', isOpen, setIsOpen })
                                     <Link
                                         key={item.name}
                                         href={item.href}
-                                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                        className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg ${activeItem === item.name
+                                            ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-200'
+                                            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                                            }`}
                                     >
                                         {item.name}
                                     </Link>
@@ -127,7 +131,10 @@ export default function Sidebar({ activeItem = 'Dashboard', isOpen, setIsOpen })
                                     <Link
                                         key={item.name}
                                         href={item.href}
-                                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                        className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg ${activeItem === item.name
+                                            ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-200'
+                                            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                                            }`}
                                     >
                                         {item.name}
                                     </Link>
@@ -144,7 +151,10 @@ export default function Sidebar({ activeItem = 'Dashboard', isOpen, setIsOpen })
                                     <Link
                                         key={item.name}
                                         href={item.href}
-                                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                        className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg ${activeItem === item.name
+                                            ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-200'
+                                            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                                            }`}
                                     >
                                         {item.name}
                                     </Link>

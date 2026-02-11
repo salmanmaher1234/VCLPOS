@@ -22,6 +22,8 @@ import ProfilePage from "./pages/ProfilePage";
 import PurchaseReturns from "./pages/PurchaseReturns";
 import Purchases from "./pages/Purchases"; // NEW
 import Expenses from "./pages/Expenses";
+import Employees from "./pages/Employees";
+import EmployeeShow from "./pages/EmployeeShow";
 
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
@@ -84,6 +86,10 @@ export default function App() {
                 return { title: "Customers", activeItem: "Customers" };
             case "/suppliers":
                 return { title: "Suppliers", activeItem: "Suppliers" };
+            case "/employees":
+                return { title: "Workforce Center", activeItem: "Employees" };
+            case (path.match(/\/employees\/\d+/) || {}).input:
+                return { title: "Staff Profile", activeItem: "Employees" };
             case "/profile":
                 return { title: "Profile", activeItem: "" };
             default:
@@ -141,6 +147,12 @@ export default function App() {
             break;
         case "/suppliers":
             Component = Suppliers;
+            break;
+        case "/employees":
+            Component = Employees;
+            break;
+        case (currentPath.match(/\/employees\/\d+/) || {}).input:
+            Component = EmployeeShow;
             break;
         case "/profile":
             Component = ProfilePage;
