@@ -64,12 +64,26 @@ class LeaveController extends Controller
             'approved_by' => $request->user()->id
         ]);
 
-        // If approved, sync employee status
+        // If approved, sync employee status and attendance
         if ($request->status === 'approved') {
             $employee = $leave->employee;
             $today = now()->toDateString();
+            
+            // 1. Update status if currently on leave
             if ($today >= $leave->start_date && $today <= $leave->end_date) {
                 $employee->update(['status' => 'on_leave']);
+            }
+
+            // 2. Create/Update attendance records for the leave period
+            $start = \Carbon\Carbon::parse($leave->start_date);
+            $end = \Carbon\Carbon::parse($leave->end_date);
+            
+            while ($start->lte($end)) {
+                \App\Models\EmployeeAttendance::updateOrCreate(
+                    ['employee_id' => $employee->id, 'date' => $start->toDateString()],
+                    ['status' => 'on_leave', 'time_in' => null, 'time_out' => null]
+                );
+                $start->addDay();
             }
         }
 

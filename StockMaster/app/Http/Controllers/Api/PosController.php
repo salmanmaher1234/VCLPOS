@@ -16,6 +16,7 @@ class PosController extends Controller
     {
         $validated = $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
+            'employee_id' => 'nullable|exists:employees,id',
             'cart' => 'required|array',
             'cart.*.id' => 'required|exists:products,id',
             'cart.*.qty' => 'required|integer|min:1',
@@ -46,6 +47,7 @@ class PosController extends Controller
             $sale = Sale::create([
                 'user_id' => $request->user()->id,
                 'customer_id' => $validated['customer_id'] ?? null,
+                'employee_id' => $validated['employee_id'] ?? null,
                 'total_amount' => $totalAmount,
                 'paid_amount' => $validated['paid_amount'],
                 'tax_rate' => $taxRate,
@@ -76,6 +78,16 @@ class PosController extends Controller
 
                 // Decrement Stock
                 $product->decrement('quantity', $item['qty']);
+            }
+            // Log Activity
+            if (!empty($validated['employee_id'])) {
+                \App\Models\EmployeeActivityLog::create([
+                    'employee_id' => $validated['employee_id'],
+                    'action' => 'processed_sale',
+                    'module' => 'sales',
+                    'description' => "Processed sale #{$sale->id} for $" . number_format($totalAmount, 2),
+                    'ip_address' => $request->ip()
+                ]);
             }
 
             return $sale;

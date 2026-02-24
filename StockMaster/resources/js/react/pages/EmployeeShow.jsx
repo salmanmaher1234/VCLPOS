@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-    ChevronLeft, Mail, Phone, MapPin, Calendar, DollarSign,
-    Shield, Clock, TrendingUp, Activity, CheckCircle, XCircle
+    ChevronLeft, Mail, Calendar, Shield
 } from 'lucide-react';
 import Link from '../components/Link';
 
@@ -10,7 +9,6 @@ export default function EmployeeShow() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Filter employee ID from URL /react/employees/:id
     const id = window.location.pathname.split('/').pop();
 
     useEffect(() => {
@@ -38,17 +36,21 @@ export default function EmployeeShow() {
 
     if (loading) return (
         <div className="flex items-center justify-center min-h-screen">
-            <div className="animate-pulse text-gray-400 font-black uppercase tracking-widest">Scanning Personnel...</div>
+            <div className="animate-pulse text-gray-400 font-black uppercase tracking-widest">Loading Staff Profile...</div>
         </div>
     );
 
     if (error || !employee) return (
         <div className="p-8 text-center">
-            <h1 className="text-4xl font-black text-gray-900 border-b-8 border-red-600 inline-block mb-4">PERSONNEL ERROR</h1>
+            <h1 className="text-4xl font-black text-gray-900 border-b-8 border-red-600 inline-block mb-4">NOT FOUND</h1>
             <p className="text-gray-500 font-bold">{error || 'Unable to retrieve employee data'}</p>
-            <Link href="/react/employees" className="mt-8 inline-block px-8 py-4 bg-black text-white font-black uppercase rounded-2xl">Return to Center</Link>
+            <Link href="/react/employees" className="mt-8 inline-block px-8 py-4 bg-black text-white font-black uppercase rounded-2xl">Back to Staff</Link>
         </div>
     );
+
+    const shiftDisplay = employee.shifts && employee.shifts.length > 0
+        ? employee.shifts.map(s => s.name).join(' & ')
+        : (employee.shift?.name || 'Not Assigned');
 
     return (
         <main className="py-8 px-4 sm:px-6 lg:px-8 bg-gray-50/30 min-h-screen">
@@ -56,12 +58,12 @@ export default function EmployeeShow() {
                 {/* Navigation & Header */}
                 <div className="flex items-center justify-between">
                     <Link href="/react/employees" className="flex items-center gap-2 text-gray-400 hover:text-black transition-colors font-black uppercase text-xs">
-                        <ChevronLeft className="h-4 w-4" /> Personnel Directory
+                        <ChevronLeft className="h-4 w-4" /> Staff Directory
                     </Link>
                     <div className="flex gap-4">
-                        <span className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${employee.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        <span className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${employee.status === 'active' ? 'bg-green-100 text-green-700' : employee.status === 'on_leave' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'
                             }`}>
-                            System Status: {employee.status}
+                            {employee.status}
                         </span>
                     </div>
                 </div>
@@ -79,10 +81,11 @@ export default function EmployeeShow() {
                             <div className="flex flex-wrap justify-center md:justify-start gap-4">
                                 <span className="bg-black text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">{employee.position}</span>
                                 <span className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">{employee.employee_code}</span>
+                                <span className="bg-orange-50 text-orange-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-orange-100">{shiftDisplay}</span>
                             </div>
                         </div>
                         <div className="flex flex-col items-center md:items-end gap-2">
-                            <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Base Compensation</p>
+                            <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Monthly Salary</p>
                             <p className="text-4xl font-black text-orange-600 tracking-tighter">${Number(employee.salary).toLocaleString()}</p>
                         </div>
                     </div>
@@ -93,53 +96,52 @@ export default function EmployeeShow() {
                     {/* Contact Card */}
                     <div className="bg-white rounded-[2.5rem] p-10 shadow-xl border border-gray-100 space-y-8">
                         <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                            <Mail className="h-3 w-3" /> Communication Channels
+                            <Mail className="h-3 w-3" /> Contact Details
                         </h3>
                         <div className="space-y-6">
-                            <InfoRow label="Official Email" value={employee.email} />
-                            <InfoRow label="Mobile Line" value={employee.phone || 'NOT REGISTERED'} />
-                            <InfoRow label="Primary Residence" value={employee.address || 'NOT REGISTERED'} />
+                            <InfoRow label="Email" value={employee.email} />
+                            <InfoRow label="Phone" value={employee.phone || 'Not Provided'} />
                         </div>
                     </div>
 
                     {/* Employment Details */}
                     <div className="bg-white rounded-[2.5rem] p-10 shadow-xl border border-gray-100 space-y-8">
                         <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                            <Calendar className="h-3 w-3" /> Career Timeline
+                            <Calendar className="h-3 w-3" /> Employment Info
                         </h3>
                         <div className="space-y-6">
-                            <InfoRow label="Enlistment Date" value={new Date(employee.hire_date).toLocaleDateString()} />
-                            <InfoRow label="Department" value={employee.department || 'GENERAL OPERATIONS'} />
-                            <InfoRow label="Authorization Role" value={employee.role} />
+                            <InfoRow label="Joining Date" value={new Date(employee.hire_date).toLocaleDateString()} />
+                            <InfoRow label="Department" value={employee.department || 'General'} />
+                            <InfoRow label="Role" value={employee.role} />
                         </div>
                     </div>
 
-                    {/* Security & Access */}
+                    {/* Permissions */}
                     <div className="bg-white rounded-[2.5rem] p-10 shadow-xl border border-gray-100 space-y-8">
                         <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                            <Shield className="h-3 w-3" /> Permission Matrix
+                            <Shield className="h-3 w-3" /> Permissions
                         </h3>
                         <div className="flex flex-wrap gap-2">
                             {employee.permissions?.map(p => (
                                 <span key={p} className="px-4 py-2 bg-orange-50 text-orange-600 rounded-xl text-[10px] font-black uppercase border border-orange-100">
                                     {p}
                                 </span>
-                            )) || <span className="text-xs text-gray-400 font-bold uppercase italic">No Special Access Granted</span>}
+                            )) || <span className="text-xs text-gray-400 font-bold uppercase italic">No Permissions Set</span>}
                         </div>
                     </div>
                 </div>
 
-                {/* Performance Summary Placeholder */}
+                {/* Performance Summary */}
                 <div className="bg-gray-900 rounded-[3rem] p-12 text-white relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-r from-orange-600/20 to-transparent"></div>
                     <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
                         <div className="space-y-4">
-                            <h2 className="text-3xl font-black uppercase tracking-tighter">Mission Readiness</h2>
-                            <p className="text-gray-400 font-medium">Automatic performance analytics tracking is currently processing for this cycle.</p>
+                            <h2 className="text-3xl font-black uppercase tracking-tighter">Performance Overview</h2>
+                            <p className="text-gray-400 font-medium">Staff performance metrics for the current cycle.</p>
                         </div>
                         <div className="flex gap-8">
-                            <StatCircle label="Attendance" value="98%" />
-                            <StatCircle label="Efficiency" value="84" />
+                            <StatCircle label="Attendance" value={employee.performance?.[0]?.attendance_days || '—'} />
+                            <StatCircle label="Rating" value={employee.performance?.[0]?.rating ? Number(employee.performance[0].rating).toFixed(1) : '—'} />
                         </div>
                     </div>
                 </div>
