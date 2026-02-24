@@ -1,1 +1,0 @@
-<img src="<?php echo e(asset('images/logo.png')); ?>" <?php echo e($attributes); ?> alt="StockMaster Logo"><?php /**PATH C:\Users\Talha\Desktop\git_repo\VCLPOS\StockMaster\resources\views/components/application-logo.blade.php ENDPATH**/ ?>

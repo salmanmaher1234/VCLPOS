@@ -137,6 +137,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/employee-payrolls', [App\Http\Controllers\Api\PayrollController::class, 'index']);
     Route::post('/employee-payrolls/generate', [App\Http\Controllers\Api\PayrollController::class, 'generate']);
     Route::put('/employee-payrolls/{id}/status', [App\Http\Controllers\Api\PayrollController::class, 'updateStatus']);
+    Route::put('/employee-payrolls/{id}/details', [App\Http\Controllers\Api\PayrollController::class, 'updateDetails']);
     Route::get('/employee-activity-logs', [App\Http\Controllers\Api\EmployeeController::class, 'getActivityLogs']);
     Route::post('/employees-attendance/mark', [App\Http\Controllers\Api\EmployeeController::class, 'markSingleAttendance']);
 });

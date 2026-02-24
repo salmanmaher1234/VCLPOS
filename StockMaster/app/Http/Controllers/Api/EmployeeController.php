@@ -17,7 +17,7 @@ class EmployeeController extends Controller
     public function index(Request $request)
     {
         $query = Employee::where('user_id', $request->user()->id)
-            ->with(['attendance' => function($q) {
+            ->with(['shifts', 'shift', 'attendance' => function($q) {
                 $q->where('date', now()->toDateString());
             }]);
 
@@ -59,8 +59,11 @@ class EmployeeController extends Controller
             'department' => 'nullable|string|max:255',
             'role' => 'required|in:admin,manager,cashier,inventory_manager,sales_person',
             'salary' => 'nullable|numeric|min:0',
+            'commission_rate' => 'nullable|numeric|min:0|max:100',
             'hire_date' => 'required|date',
-            'permissions' => 'nullable|array'
+            'permissions' => 'nullable|array',
+            'shift_id' => 'nullable|exists:employee_shifts,id',
+            'shift_ids' => 'nullable|array'
         ]);
 
         if ($validator->fails()) {
@@ -90,10 +93,18 @@ class EmployeeController extends Controller
             'department' => $request->department,
             'role' => $request->role,
             'salary' => $request->salary,
+            'commission_rate' => $request->commission_rate ?? 0,
             'hire_date' => $request->hire_date,
             'status' => 'active',
-            'permissions' => $request->permissions ?? []
+            'permissions' => $request->permissions ?? [],
+            'shift_id' => $request->shift_id != '' ? $request->shift_id : null
         ]);
+
+        if ($request->has('shift_ids')) {
+            $employee->shifts()->sync($request->shift_ids);
+        } elseif ($request->shift_id) {
+            $employee->shifts()->sync([$request->shift_id]);
+        }
 
         return response()->json($employee, 201);
     }
@@ -104,7 +115,7 @@ class EmployeeController extends Controller
     public function show(Request $request, $id)
     {
         $employee = Employee::where('user_id', $request->user()->id)
-            ->with(['attendance', 'performance'])
+            ->with(['attendance', 'performance', 'shift', 'shifts'])
             ->findOrFail($id);
 
         return response()->json($employee);
@@ -125,16 +136,32 @@ class EmployeeController extends Controller
             'department' => 'nullable|string|max:255',
             'role' => 'sometimes|required|in:admin,manager,cashier,inventory_manager,sales_person',
             'salary' => 'nullable|numeric|min:0',
+            'commission_rate' => 'nullable|numeric|min:0|max:100',
             'hire_date' => 'sometimes|required|date',
             'status' => 'sometimes|required|in:active,inactive,on_leave',
-            'permissions' => 'nullable|array'
+            'permissions' => 'nullable|array',
+            'shift_id' => 'nullable|exists:employee_shifts,id',
+            'shift_ids' => 'nullable|array'
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $employee->update($request->all());
+        $data = $request->except(['employee_code', 'user_id']); // Don't allow updating these
+        if (isset($data['shift_id']) && $data['shift_id'] == '') {
+            $data['shift_id'] = null;
+        }
+
+        $employee->update($data);
+
+        if ($request->has('shift_ids')) {
+            $employee->shifts()->sync($request->shift_ids);
+        } elseif ($request->has('shift_id')) {
+            $employee->shifts()->sync($request->shift_id ? [$request->shift_id] : []);
+        }
+
+        $employee->load(['shift', 'shifts']); // Ensure shift info is updated in the response
 
         // Sync with today's attendance if status is on_leave or inactive
         if ($request->has('status') && ($request->status === 'on_leave' || $request->status === 'inactive')) {
@@ -153,9 +180,9 @@ class EmployeeController extends Controller
     public function destroy(Request $request, $id)
     {
         $employee = Employee::where('user_id', $request->user()->id)->findOrFail($id);
-        $employee->delete();
+        $employee->forceDelete();
 
-        return response()->json(['message' => 'Employee deleted successfully']);
+        return response()->json(['message' => 'Employee and all related data deleted permanently']);
     }
 
     /**
@@ -173,6 +200,7 @@ class EmployeeController extends Controller
         }
 
         $employee = Employee::where('user_id', $request->user()->id)
+            ->with(['shift', 'shifts'])
             ->findOrFail($request->employee_id);
 
         $today = now()->toDateString();
@@ -189,9 +217,27 @@ class EmployeeController extends Controller
         if ($request->type === 'in') {
             $attendance->time_in = now()->format('H:i:s');
             
-            // Check if late (after 9:00 AM)
-            if (now()->format('H:i') > '09:00') {
-                $attendance->status = 'late';
+            // Check for lateness against all assigned shifts
+            $activeShifts = $employee->shifts->isNotEmpty() ? $employee->shifts : ($employee->shift ? collect([$employee->shift]) : collect());
+            
+            if ($activeShifts->isNotEmpty()) {
+                $isLate = true;
+                foreach ($activeShifts as $s) {
+                    $shiftStart = \Carbon\Carbon::parse($today . ' ' . $s->start_time);
+                    $gracePeriod = $s->late_threshold ?? 15;
+                    if (now()->lte($shiftStart->copy()->addMinutes($gracePeriod))) {
+                        $isLate = false;
+                        break;
+                    }
+                }
+                if ($isLate) {
+                    $attendance->status = 'late';
+                }
+            } else {
+                // Fallback for no shift (Default 9:00 AM + 15m grace)
+                if (now()->format('H:i') > '09:15') {
+                    $attendance->status = 'late';
+                }
             }
         } else {
             $attendance->time_out = now()->format('H:i:s');
@@ -199,6 +245,9 @@ class EmployeeController extends Controller
         }
 
         $attendance->save();
+
+        // Sync performance for the month
+        $this->syncPerformance($employee->id, now()->format('Y-m'));
 
         return response()->json($attendance);
     }
@@ -237,9 +286,14 @@ class EmployeeController extends Controller
         $date = $request->input('date', now()->toDateString());
         $userId = $request->user()->id;
 
-        // Get all active employees
+        // Get all active employees with Shift and Leaves
         $employees = Employee::where('user_id', $userId)
             ->where('status', '!=', 'inactive')
+            ->with(['shift', 'shifts', 'leaves' => function($q) use ($date) {
+                $q->where('status', 'approved')
+                  ->whereDate('start_date', '<=', $date)
+                  ->whereDate('end_date', '>=', $date);
+            }])
             ->get();
 
         // Get attendance for these employees on the specific date
@@ -250,16 +304,54 @@ class EmployeeController extends Controller
 
         $result = $employees->map(function ($employee) use ($attendance, $date) {
             $record = $attendance->get($employee->id);
+            $status = $record ? $record->status : ($date >= now()->toDateString() ? 'upcoming' : 'absent');
+            
+            // Real-time Status Inference for Today or Future if no record
+            if (!$record && $date >= now()->toDateString()) {
+                // Check if on Leave
+                if ($employee->leaves->isNotEmpty()) {
+                    $status = 'on_leave';
+                } 
+                // Check if Weekly Off
+                elseif ($employee->shift && $employee->shift->weekly_off && in_array(\Carbon\Carbon::parse($date)->format('l'), $employee->shift->weekly_off)) {
+                    $status = 'weekend';
+                }
+                // Check if Late (Any Shift Started + grace) - ONLY FOR TODAY
+                elseif ($date === now()->toDateString()) {
+                    $activeShifts = $employee->shifts->isNotEmpty() ? $employee->shifts : ($employee->shift ? collect([$employee->shift]) : collect());
+                    
+                    if ($activeShifts->isNotEmpty()) {
+                        $isLateCandidate = false;
+                        foreach ($activeShifts as $s) {
+                            $shiftStart = \Carbon\Carbon::parse($date . ' ' . $s->start_time);
+                            if (now()->gt($shiftStart->copy()->addMinutes($s->late_threshold ?? 15))) {
+                                $isLateCandidate = true;
+                            } else {
+                                // If any shift hasn't reached late threshold yet, mark as upcoming
+                                $status = 'upcoming';
+                                $isLateCandidate = false;
+                                break;
+                            }
+                        }
+                        if ($isLateCandidate) $status = 'late';
+                    }
+                }
+            }
+
             return [
                 'id' => $record ? $record->id : null,
                 'employee_id' => $employee->id,
                 'employee_name' => $employee->name,
                 'employee_code' => $employee->employee_code,
+                'position' => $employee->position,
+                'photo' => $employee->photo,
                 'date' => $date,
-                'status' => $record ? $record->status : 'absent',
+                'status' => $status,
                 'time_in' => $record ? $record->time_in : null,
                 'time_out' => $record ? $record->time_out : null,
                 'total_hours' => $record ? $record->total_hours : null,
+                'shift_name' => $employee->shifts->isNotEmpty() ? $employee->shifts->pluck('name')->implode(' & ') : ($employee->shift ? $employee->shift->name : 'Standard'),
+                'shift_times' => $employee->shifts->isNotEmpty() ? $employee->shifts->map(fn($s) => substr($s->start_time, 0, 5) . '-' . substr($s->end_time, 0, 5))->implode(', ') : ($employee->shift ? substr($employee->shift->start_time, 0, 5) . ' - ' . substr($employee->shift->end_time, 0, 5) : '09:00 - 17:00'),
                 'employee' => $employee
             ];
         });
@@ -354,7 +446,35 @@ class EmployeeController extends Controller
         }
 
         // Verify ownership
-        $employee = Employee::where('user_id', $request->user()->id)->findOrFail($request->employee_id);
+        $employee = Employee::where('user_id', $request->user()->id)
+            ->with(['shift', 'shifts'])
+            ->findOrFail($request->employee_id);
+
+        // Determine default time_in from shift if not provided
+        $defaultTimeIn = null;
+        if ($request->status === 'present' && !$request->time_in) {
+            if ($employee->shifts->isNotEmpty()) {
+                $defaultTimeIn = $employee->shifts->first()->start_time;
+            } elseif ($employee->shift) {
+                $defaultTimeIn = $employee->shift->start_time;
+            } else {
+                $defaultTimeIn = '09:00:00';
+            }
+        }
+
+        $timeIn = $request->time_in ?? $defaultTimeIn;
+        $timeOut = $request->time_out;
+
+        // Calculate total hours if both time_in and time_out are provided
+        $totalHours = null;
+        if ($timeIn && $timeOut) {
+            $parsedIn = \Carbon\Carbon::parse($timeIn);
+            $parsedOut = \Carbon\Carbon::parse($timeOut);
+            if ($parsedOut->lt($parsedIn)) {
+                $parsedOut->addDay(); // handle overnight shifts
+            }
+            $totalHours = $parsedOut->diffInMinutes($parsedIn);
+        }
 
         $attendance = EmployeeAttendance::updateOrCreate(
             [
@@ -363,10 +483,23 @@ class EmployeeController extends Controller
             ],
             [
                 'status' => $request->status,
-                'time_in' => $request->time_in ?? ($request->status === 'present' ? '09:00:00' : null),
-                'time_out' => $request->time_out
+                'time_in' => $timeIn,
+                'time_out' => $timeOut,
+                'total_hours' => $totalHours
             ]
         );
+
+        // Sync main employee status if date is today
+        if ($request->date === now()->toDateString()) {
+            if ($request->status === 'on_leave') {
+                $employee->update(['status' => 'on_leave']);
+            } elseif (in_array($request->status, ['present', 'late', 'half_day', 'absent'])) {
+                $employee->update(['status' => 'active']);
+            }
+        }
+
+        // Sync performance record for the month
+        $this->syncPerformance($employee->id, \Carbon\Carbon::parse($request->date)->format('Y-m'));
 
         return response()->json($attendance);
     }
@@ -455,7 +588,7 @@ class EmployeeController extends Controller
             $q->where('user_id', $userId);
         })
         ->where('date', now()->toDateString())
-        ->where('status', 'present')
+        ->whereIn('status', ['present', 'late', 'half_day'])
         ->count();
 
         $avgPerformance = EmployeePerformance::whereHas('employee', function($q) use ($userId) {
@@ -473,7 +606,7 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Get employee activity logs
+     * Get Activity Logs
      */
     public function getActivityLogs(Request $request)
     {
@@ -487,4 +620,62 @@ class EmployeeController extends Controller
 
         return response()->json($logs);
     }
+
+    /**
+     * Sync performance record from real attendance data
+     */
+    private function syncPerformance($employeeId, $month)
+    {
+        $employee = Employee::with('shift')->findOrFail($employeeId);
+        
+        // 1. Calculate Attendance Stats
+        $attendances = EmployeeAttendance::where('employee_id', $employeeId)
+            ->where('date', 'like', "$month%")
+            ->get();
+
+        $presentDays = $attendances->whereIn('status', ['present', 'late', 'half_day'])->count();
+        $lateDays = $attendances->where('status', 'late')->count();
+        
+        // 2. Calculate Sales (if applicable)
+        $salesAmount = \App\Models\Sale::where('employee_id', $employeeId)
+            ->where('created_at', 'like', "$month%")
+            ->sum('total_amount');
+        $salesCount = \App\Models\Sale::where('employee_id', $employeeId)
+            ->where('created_at', 'like', "$month%")
+            ->count();
+
+        // 3. Update or Create Performance Record
+        $performance = EmployeePerformance::updateOrCreate(
+            ['employee_id' => $employeeId, 'month' => $month],
+            [
+                'attendance_days' => $presentDays,
+                'late_days' => $lateDays,
+                'sales_amount' => $salesAmount,
+                'sales_count' => $salesCount,
+                'rating' => $presentDays > 0 ? min(5, (4 + ($presentDays / 22) - ($lateDays / 10))) : 0,
+                'feedback' => $presentDays > 0 ? "Automatically updated from attendance records." : "Awaiting data.",
+                'metrics' => [
+                    'efficiency' => $presentDays > 0 ? round((($presentDays - $lateDays) / 22) * 100) : 0,
+                    'punctuality' => $presentDays > 0 ? round((1 - ($lateDays / $presentDays)) * 100) : 100
+                ]
+            ]
+        );
+
+        return $performance;
+    }
+
+    /**
+     * Helper to log employee activity
+     */
+    private function logActivity($employeeId, $action, $module, $description)
+    {
+        return \App\Models\EmployeeActivityLog::create([
+            'employee_id' => $employeeId,
+            'action' => $action,
+            'module' => $module,
+            'description' => $description,
+            'ip_address' => request()->ip()
+        ]);
+    }
+
 }

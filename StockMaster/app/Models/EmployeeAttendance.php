@@ -31,8 +31,10 @@ class EmployeeAttendance extends Model
         if ($this->time_in && $this->time_out) {
             $timeIn = \Carbon\Carbon::parse($this->time_in);
             $timeOut = \Carbon\Carbon::parse($this->time_out);
-            $this->total_hours = abs($timeOut->diffInMinutes($timeIn));
-            $this->save();
+            if ($timeOut->lt($timeIn)) {
+                $timeOut->addDay(); // handle overnight shifts
+            }
+            $this->total_hours = $timeOut->diffInMinutes($timeIn);
         }
     }
 }

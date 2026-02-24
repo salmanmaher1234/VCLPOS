@@ -24,7 +24,7 @@ class EmployeeShift extends Model
 
     public function employees()
     {
-        return $this->hasMany(Employee::class, 'shift_id');
+        return $this->belongsToMany(Employee::class, 'employee_shift_pivot', 'shift_id', 'employee_id');
     }
 
     public function user()

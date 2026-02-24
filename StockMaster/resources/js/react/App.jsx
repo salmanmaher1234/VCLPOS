@@ -87,7 +87,7 @@ export default function App() {
             case "/suppliers":
                 return { title: "Suppliers", activeItem: "Suppliers" };
             case "/employees":
-                return { title: "Workforce Center", activeItem: "Employees" };
+                return { title: "Employees", activeItem: "Employees" };
             case (path.match(/\/employees\/\d+/) || {}).input:
                 return { title: "Staff Profile", activeItem: "Employees" };
             case "/profile":

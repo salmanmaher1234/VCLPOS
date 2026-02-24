@@ -45,6 +45,11 @@ class Employee extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function shifts()
+    {
+        return $this->belongsToMany(EmployeeShift::class, 'employee_shift_pivot', 'employee_id', 'shift_id');
+    }
+
     public function shift()
     {
         return $this->belongsTo(EmployeeShift::class, 'shift_id');

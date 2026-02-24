@@ -11,7 +11,9 @@ class ShiftController extends Controller
 {
     public function index(Request $request)
     {
-        $shifts = EmployeeShift::where('user_id', $request->user()->id)->get();
+        $shifts = EmployeeShift::where('user_id', $request->user()->id)
+            ->with('employees')
+            ->get();
         return response()->json($shifts);
     }
 
