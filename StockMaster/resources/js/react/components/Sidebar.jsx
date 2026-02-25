@@ -22,6 +22,7 @@ export default function Sidebar({ activeItem = 'Dashboard', isOpen, setIsOpen })
     const peopleItems = [
         { name: 'Employees', href: '/react/employees' },
         { name: 'Customers', href: '/react/customers' },
+        { name: 'Customer Details', href: '/react/customer-details' },
         { name: 'Suppliers', href: '/react/suppliers' },
     ];
 

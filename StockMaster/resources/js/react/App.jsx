@@ -24,6 +24,8 @@ import Purchases from "./pages/Purchases"; // NEW
 import Expenses from "./pages/Expenses";
 import Employees from "./pages/Employees";
 import EmployeeShow from "./pages/EmployeeShow";
+import CustomerDetails from "./pages/CustomerDetails";
+import CustomerShow from "./pages/CustomerShow";
 
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
@@ -83,7 +85,11 @@ export default function App() {
             case "/adjustments":
                 return { title: "Adjustments", activeItem: "Adjustments" };
             case "/customers":
-                return { title: "Customers", activeItem: "Customers" };
+                return { title: "Add Customer", activeItem: "Customers" };
+            case "/customer-details":
+                return { title: "Customer Details", activeItem: "Customer Details" };
+            case (path.match(/\/customers\/\d+/) || {}).input:
+                return { title: "Customer Profile", activeItem: "Customer Details" };
             case "/suppliers":
                 return { title: "Suppliers", activeItem: "Suppliers" };
             case "/employees":
@@ -144,6 +150,12 @@ export default function App() {
             break;
         case "/customers":
             Component = Customers;
+            break;
+        case "/customer-details":
+            Component = CustomerDetails;
+            break;
+        case (currentPath.match(/\/customers\/\d+/) || {}).input:
+            Component = CustomerShow;
             break;
         case "/suppliers":
             Component = Suppliers;
