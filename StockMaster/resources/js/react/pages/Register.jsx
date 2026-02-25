@@ -8,9 +8,59 @@ export default function Register() {
     const [password, setPassword] = useState('');
     const [passwordConfirmation, setPasswordConfirmation] = useState('');
 
-    const handleSubmit = (e) => {
+    const [errors, setErrors] = useState({});
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log('Register attempt to:', API_ROUTES.REGISTER);
+        setLoading(true);
+        setErrors({});
+
+        if (password !== passwordConfirmation) {
+            setErrors({ password_confirmation: ['The password confirmation does not match.'] });
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const response = await fetch(API_ROUTES.REGISTER, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    name,
+                    email,
+                    password,
+                    password_confirmation: passwordConfirmation,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                if (data.errors) {
+                    setErrors(data.errors);
+                } else if (data.message) {
+                    setErrors({ email: [data.message] });
+                }
+                setLoading(false);
+                return;
+            }
+
+            // Store the token and user in localStorage
+            localStorage.setItem('auth_token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+
+            // Redirect to dashboard
+            window.location.href = '/react/dashboard';
+
+        } catch (error) {
+            console.error('Registration error:', error);
+            setErrors({ email: ['An error occurred during registration. Please try again.'] });
+            setLoading(false);
+        }
     };
 
     return (
@@ -31,6 +81,9 @@ export default function Register() {
                         autoFocus
                         autoComplete="name"
                     />
+                    {errors.name && (
+                        <p className="text-sm text-red-600 dark:text-red-400 mt-2">{errors.name[0]}</p>
+                    )}
                 </div>
 
                 {/* Email */}
@@ -47,6 +100,9 @@ export default function Register() {
                         required
                         autoComplete="username"
                     />
+                    {errors.email && (
+                        <p className="text-sm text-red-600 dark:text-red-400 mt-2">{errors.email[0]}</p>
+                    )}
                 </div>
 
                 {/* Password */}
@@ -63,6 +119,9 @@ export default function Register() {
                         required
                         autoComplete="new-password"
                     />
+                    {errors.password && (
+                        <p className="text-sm text-red-600 dark:text-red-400 mt-2">{errors.password[0]}</p>
+                    )}
                 </div>
 
                 {/* Confirm Password */}
@@ -79,6 +138,9 @@ export default function Register() {
                         required
                         autoComplete="new-password"
                     />
+                    {errors.password_confirmation && (
+                        <p className="text-sm text-red-600 dark:text-red-400 mt-2">{errors.password_confirmation[0]}</p>
+                    )}
                 </div>
 
                 <div className="flex items-center justify-end mt-4">
@@ -91,9 +153,10 @@ export default function Register() {
 
                     <button
                         type="submit"
-                        className="inline-flex items-center px-4 py-2 bg-gray-800 dark:bg-gray-200 border border-transparent rounded-md font-semibold text-xs text-white dark:text-gray-800 uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-white focus:bg-gray-700 dark:focus:bg-white active:bg-gray-900 dark:active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150 ms-3"
+                        disabled={loading}
+                        className="inline-flex items-center px-4 py-2 bg-gray-800 dark:bg-gray-200 border border-transparent rounded-md font-semibold text-xs text-white dark:text-gray-800 uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-white focus:bg-gray-700 dark:focus:bg-white active:bg-gray-900 dark:active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150 ms-3 disabled:opacity-50"
                     >
-                        Register
+                        {loading ? 'Registering...' : 'Register'}
                     </button>
                 </div>
             </form>

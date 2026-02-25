@@ -16,8 +16,10 @@ class PosController extends Controller
     {
         $validated = $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
+            'employee_id' => 'nullable|exists:employees,id',
             'cart' => 'required|array',
-            'cart.*.id' => 'required|exists:products,id',
+            'cart.*.id' => 'nullable',
+            'cart.*.name' => 'required|string',
             'cart.*.qty' => 'required|integer|min:1',
             'cart.*.price' => 'required|numeric|min:0',
             'total_amount' => 'required|numeric|min:0',
@@ -46,6 +48,7 @@ class PosController extends Controller
             $sale = Sale::create([
                 'user_id' => $request->user()->id,
                 'customer_id' => $validated['customer_id'] ?? null,
+                'employee_id' => $validated['employee_id'] ?? null,
                 'total_amount' => $totalAmount,
                 'paid_amount' => $validated['paid_amount'],
                 'tax_rate' => $taxRate,
@@ -58,12 +61,30 @@ class PosController extends Controller
 
             // Create Sale Items and Update Stock
             foreach ($validated['cart'] as $item) {
-                $product = Product::where('user_id', $request->user()->id)
-                    ->findOrFail($item['id']);
+                if (empty($item['id']) || !is_numeric($item['id'])) {
+                    // Create dummy product on the fly for custom items
+                    $product = Product::create([
+                        'user_id' => $request->user()->id,
+                        'name' => $item['name'] ?? 'Custom Item',
+                        'code' => 'CUSTOM-' . uniqid(),
+                        'type' => 'Standard',
+                        'cost' => $item['price'],
+                        'price' => $item['price'],
+                        'quantity' => 1000000,
+                        'alert_quantity' => 0,
+                    ]);
+                    $item['id'] = $product->id;
+                } else {
+                    $product = Product::where('user_id', $request->user()->id)
+                        ->findOrFail($item['id']);
 
-                // Check if enough stock is available
-                if ($product->quantity < $item['qty']) {
-                    throw new \Exception("Insufficient stock for product: {$product->name}");
+                    // Check if enough stock is available
+                    if ($product->quantity < $item['qty']) {
+                        throw new \Exception("Insufficient stock for product: {$product->name}");
+                    }
+
+                    // Decrement Stock
+                    $product->decrement('quantity', $item['qty']);
                 }
 
                 SaleItem::create([
@@ -73,9 +94,16 @@ class PosController extends Controller
                     'price' => $item['price'],
                     'total' => $item['qty'] * $item['price'],
                 ]);
-
-                // Decrement Stock
-                $product->decrement('quantity', $item['qty']);
+            }
+            // Log Activity
+            if (!empty($validated['employee_id'])) {
+                \App\Models\EmployeeActivityLog::create([
+                    'employee_id' => $validated['employee_id'],
+                    'action' => 'processed_sale',
+                    'module' => 'sales',
+                    'description' => "Processed sale #{$sale->id} for $" . number_format($totalAmount, 2),
+                    'ip_address' => $request->ip()
+                ]);
             }
 
             return $sale;
