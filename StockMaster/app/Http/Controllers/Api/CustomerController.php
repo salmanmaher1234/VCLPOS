@@ -10,9 +10,10 @@ class CustomerController extends Controller
 {
     public function index(Request $request)
     {
+        $perPage = $request->get('per_page', 10);
         $customers = Customer::where('user_id', $request->user()->id)
             ->latest()
-            ->paginate(10);
+            ->paginate($perPage);
 
         return response()->json($customers);
     }

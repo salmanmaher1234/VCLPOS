@@ -25,6 +25,9 @@ class SaleController extends Controller
         if ($request->has('end_date') && $request->end_date) {
             $query->whereDate('created_at', '<=', $request->end_date);
         }
+        if ($request->has('customer_id') && $request->customer_id) {
+            $query->where('customer_id', $request->customer_id);
+        }
 
         // Clone query for stats to avoid modifying the main pagination query
         $statsQuery = clone $query;
@@ -47,6 +50,8 @@ class SaleController extends Controller
                 'sale_number' => $sale->sale_number ?? str_pad($sale->id, 6, '0', STR_PAD_LEFT),
                 'customer_name' => $sale->customer ? $sale->customer->name : 'Walk-in Customer',
                 'total_amount' => (float) $sale->total_amount,
+                'paid_amount' => (float) $sale->paid_amount,
+                'payment_method' => $sale->payment_method ?? 'Cash',
                 'status' => ucfirst($sale->status ?? 'completed'),
                 'date' => $sale->created_at->format('Y-m-d'),
                 'time' => $sale->created_at->format('H:i'),
@@ -54,6 +59,7 @@ class SaleController extends Controller
                 'first_product_name' => $sale->items->first() && $sale->items->first()->product ? $sale->items->first()->product->name : 'Unknown Product',
                 'items' => $sale->items->map(function ($item) {
                     return [
+                        'id' => $item->id,
                         'product_name' => $item->product ? $item->product->name : 'Unknown Product',
                         'quantity' => $item->quantity,
                         'price' => (float) $item->price,
