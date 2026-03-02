@@ -290,6 +290,17 @@ export default function POS() {
                 setSuccessMessage(
                     `Sale completed! Receipt #${data.receipt_number}`
                 );
+
+                // Add Notification
+                if (window.addVclNotification) {
+                    window.addVclNotification({
+                        type: 'sale',
+                        title: 'New Sale Completed',
+                        message: `Sale processed for ${lastSaleData.customer}. Total: $${lastSaleData.total.toFixed(2)}`,
+                        invoice: data.receipt_number
+                    });
+                }
+
                 setTimeout(() => setSuccessMessage(""), 5000);
 
                 // Show receipt preview after successful checkout

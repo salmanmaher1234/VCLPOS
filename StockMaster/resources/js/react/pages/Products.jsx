@@ -85,6 +85,17 @@ export default function Products() {
 
             if (response.ok) {
                 setSuccessMessage(data.message);
+
+                // Add Notification
+                if (window.addVclNotification) {
+                    window.addVclNotification({
+                        type: 'low_stock', // Using generic alert type or new product type
+                        title: editingProduct ? 'Product Updated' : 'New Product Added',
+                        message: `${editingProduct ? 'Changes saved' : 'New product created'} for "${formData.name}".`,
+                        invoice: formData.code
+                    });
+                }
+
                 setShowModal(false);
                 resetForm();
                 fetchProducts();
@@ -114,6 +125,18 @@ export default function Products() {
             if (response.ok) {
                 const data = await response.json();
                 setSuccessMessage(data.message);
+
+                // Add Notification
+                if (window.addVclNotification) {
+                    const productToDelete = products.find(p => p.id === id);
+                    window.addVclNotification({
+                        type: 'low_stock',
+                        title: 'Product Deleted',
+                        message: `Product "${productToDelete?.name || id}" has been removed from system.`,
+                        invoice: productToDelete?.code
+                    });
+                }
+
                 fetchProducts();
                 setTimeout(() => setSuccessMessage(''), 3000);
             }

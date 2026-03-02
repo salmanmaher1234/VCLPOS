@@ -67,7 +67,27 @@ export default function Employees() {
             });
 
             const data = await response.json();
-            if (response.ok) { fetchEmployees(); fetchStats(); setShowAddModal(false); }
+            if (response.ok) {
+                fetchEmployees();
+                fetchStats();
+                setShowAddModal(false);
+
+                // Add Notification with Fail-Safe
+                const entry = {
+                    type: 'staff',
+                    title: 'New Staff Registered',
+                    message: `Staff member "${formData.name}" has been successfully added to the system.`
+                };
+
+                if (window.addVclNotification) {
+                    window.addVclNotification(entry);
+                } else {
+                    const saved = JSON.parse(localStorage.getItem('vcl_notifications') || '[]');
+                    const fall = { id: Date.now(), time: new Date().toLocaleTimeString(), date: new Date().toISOString().split('T')[0], read: false, ...entry };
+                    localStorage.setItem('vcl_notifications', JSON.stringify([fall, ...saved].slice(0, 100)));
+                    window.dispatchEvent(new Event('vcl-notification-added'));
+                }
+            }
             else { throw data; }
         } catch (error) {
             console.error('Error:', error);
@@ -90,7 +110,23 @@ export default function Employees() {
             });
 
             const data = await response.json();
-            if (response.ok) { fetchEmployees(); fetchStats(); setEditingEmployee(null); }
+            if (response.ok) {
+                // Add Notification Fail-Safe
+                const entry = {
+                    type: 'staff',
+                    title: 'Staff Profile Updated',
+                    message: `Employee "${formData.name}" profile has been updated.`
+                };
+                if (window.addVclNotification) {
+                    window.addVclNotification(entry);
+                } else {
+                    const saved = JSON.parse(localStorage.getItem('vcl_notifications') || '[]');
+                    const fall = { id: Date.now(), time: new Date().toLocaleTimeString(), date: new Date().toISOString().split('T')[0], read: false, ...entry };
+                    localStorage.setItem('vcl_notifications', JSON.stringify([fall, ...saved].slice(0, 100)));
+                    window.dispatchEvent(new Event('vcl-notification-added'));
+                }
+                fetchEmployees(); fetchStats(); setEditingEmployee(null);
+            }
             else { throw data; }
         } catch (error) {
             console.error('Error:', error);
@@ -132,6 +168,21 @@ export default function Employees() {
             });
 
             if (response.ok) {
+                // Add Notification Fail-Safe
+                const empToDelete = employees.find(e => e.id === id);
+                const entry = {
+                    type: 'staff',
+                    title: 'Employee Terminated',
+                    message: `Employee "${empToDelete?.name || id}" has been removed/deleted from the system.`
+                };
+                if (window.addVclNotification) {
+                    window.addVclNotification(entry);
+                } else {
+                    const saved = JSON.parse(localStorage.getItem('vcl_notifications') || '[]');
+                    const fall = { id: Date.now(), time: new Date().toLocaleTimeString(), date: new Date().toISOString().split('T')[0], read: false, ...entry };
+                    localStorage.setItem('vcl_notifications', JSON.stringify([fall, ...saved].slice(0, 100)));
+                    window.dispatchEvent(new Event('vcl-notification-added'));
+                }
                 refreshGlobal();
             } else {
                 alert('Failed to delete employee');
@@ -152,36 +203,41 @@ export default function Employees() {
         <main className="py-8 px-4 sm:px-6 lg:px-8 bg-gray-50/50 min-h-screen">
             <div className="max-w-7xl mx-auto space-y-8">
                 {/* Header Section */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                        <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Employees Management</h1>
-                        <p className="text-gray-500 font-medium tracking-tight">Enterprise POS Management Suite</p>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white dark:bg-gray-800 p-8 lg:p-10 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-800">
+                    <div className="space-y-1">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Employee Directory</h1>
+                        <p className="text-gray-500 font-medium text-sm">Manage staff records, attendance, and payroll</p>
                     </div>
-                    <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-orange-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl">
-                        Add Employee
+                    <button
+                        onClick={() => setShowAddModal(true)}
+                        className="w-full md:w-auto flex items-center justify-center gap-3 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white px-10 py-4 rounded-xl font-bold hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-orange-500/20 uppercase text-xs tracking-widest"
+                    >
+                        <PlusCircle className="h-5 w-5" />
+                        <span>Board New Personnel</span>
                     </button>
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <StatCard icon={Users} label="Total Staff" value={stats.total_employees || 0} color="blue" />
-                    <StatCard icon={CheckCircle} label="Active" value={stats.active_employees || 0} color="green" />
-                    <StatCard icon={Clock} label="Today" value={stats.today_present || 0} color="orange" />
-                    <StatCard icon={TrendingUp} label="Rating" value={stats.avg_performance || 0} color="purple" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                    <StatCard icon={Users} label="Staff" value={stats.total_employees || 0} />
+                    <StatCard icon={CheckCircle} label="Active" value={stats.active_employees || 0} />
+                    <StatCard icon={Clock} label="Today" value={stats.today_present || 0} />
+                    <StatCard icon={TrendingUp} label="Rating" value={stats.avg_performance || 0} />
                 </div>
 
                 {/* Main Navigation Tabs */}
-                <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100">
-                    <nav className="flex overflow-x-auto px-8 py-4 gap-2 border-b">
-                        <TabButton active={activeTab === 'employees'} onClick={() => setActiveTab('employees')}>Staff</TabButton>
+                <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm overflow-hidden border border-gray-100 dark:border-gray-800">
+                    <nav className="flex overflow-x-auto px-4 sm:px-8 py-4 gap-1 sm:gap-2 border-b border-gray-100 dark:border-gray-800 scrollbar-hide">
+                        <TabButton active={activeTab === 'employees'} onClick={() => setActiveTab('employees')}>Staff List</TabButton>
                         <TabButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')}>Attendance</TabButton>
                         <TabButton active={activeTab === 'payroll'} onClick={() => setActiveTab('payroll')}>Payroll</TabButton>
                         <TabButton active={activeTab === 'leaves'} onClick={() => setActiveTab('leaves')}>Leaves</TabButton>
                         <TabButton active={activeTab === 'performance'} onClick={() => setActiveTab('performance')}>Performance</TabButton>
                         <TabButton active={activeTab === 'shifts'} onClick={() => setActiveTab('shifts')}>Shifts</TabButton>
                     </nav>
+                    <style>{` .custom-scrollbar-hide::-webkit-scrollbar { display: none; } .custom-scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; } `}</style>
 
-                    <div className="p-8">
+                    <div className="p-4 sm:p-8">
                         {activeTab === 'employees' && (
                             <EmployeeList employees={employees} onEdit={(emp) => setEditingEmployee(emp)} onDelete={handleDeleteEmployee} filterRole={filterRole} setFilterRole={setFilterRole} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
                         )}
@@ -201,15 +257,15 @@ export default function Employees() {
     );
 }
 
-function StatCard({ icon: Icon, label, value, color }) {
+function StatCard({ icon: Icon, label, value }) {
     return (
-        <div className="p-6 rounded-3xl bg-white border border-gray-100 shadow-sm flex items-center gap-6">
-            <div className="p-4 rounded-2xl bg-gray-50 uppercase shadow-sm">
-                <Icon className="h-8 w-8 text-orange-600" />
+        <div className="p-6 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-5 group hover:border-blue-500/30 transition-all">
+            <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                <Icon className="h-6 w-6" />
             </div>
             <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</p>
-                <p className="text-3xl font-black">{value}</p>
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{label}</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{value}</p>
             </div>
         </div>
     );
@@ -217,7 +273,16 @@ function StatCard({ icon: Icon, label, value, color }) {
 
 function TabButton({ children, active, onClick }) {
     return (
-        <button onClick={onClick} className={`px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${active ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-gray-600'}`}>
+        <button
+            onClick={onClick}
+            className={`
+                px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap
+                ${active
+                    ? 'bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white shadow-lg shadow-orange-500/20'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
+                }
+            `}
+        >
             {children}
         </button>
     );
@@ -227,47 +292,70 @@ function EmployeeList({ employees, onEdit, onDelete, filterRole, setFilterRole, 
     if (!Array.isArray(employees)) return null;
     return (
         <div className="space-y-6">
-            <div className="flex gap-4 items-center">
-                <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-12 pr-6 py-4 rounded-2xl bg-gray-50 border-none font-bold" />
+            <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1 group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-blue-500" />
+                    <input
+                        type="text"
+                        placeholder="Search by name, code or position..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-12 pr-6 py-3.5 rounded-xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all font-medium text-sm dark:text-white"
+                    />
                 </div>
-                <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} className="px-6 py-4 rounded-2xl bg-gray-50 border-none font-bold text-xs uppercase cursor-pointer">
-                    <option value="all">Every Role</option>
-                    <option value="admin">Admins</option>
+                <select
+                    value={filterRole}
+                    onChange={(e) => setFilterRole(e.target.value)}
+                    className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gray-50 dark:bg-gray-900 border-none font-bold text-xs uppercase cursor-pointer focus:ring-4 focus:ring-blue-500/10"
+                >
+                    <option value="all">All Roles</option>
+                    <option value="admin">Administrators</option>
                     <option value="manager">Managers</option>
                     <option value="cashier">Cashiers</option>
                 </select>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {employees.map((emp) => (
-                    <Link key={emp.id} href={`/react/employees/${emp.id}`} className="block">
-                        <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm relative group hover:-translate-y-1 transition-all h-full">
-                            <div className="flex items-center gap-6 mb-8">
-                                <div className="h-16 w-16 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-600 text-2xl font-black">{emp.name.charAt(0)}</div>
-                                <div>
-                                    <h3 className="text-xl font-black leading-none mb-1">{emp.name}</h3>
-                                    <p className="text-xs font-bold text-orange-600 uppercase tracking-widest">{emp.position}</p>
+                    <Link key={emp.id} href={`/react/employees/${emp.id}`} className="block group">
+                        <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm relative hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/5 transition-all h-full">
+                            <div className="flex items-center gap-5 mb-8">
+                                <div className="h-16 w-16 rounded-2xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 text-2xl font-bold">
+                                    {emp.name.charAt(0)}
+                                </div>
+                                <div className="min-w-0">
+                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white truncate">{emp.name}</h3>
+                                    <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">{emp.position}</p>
                                 </div>
                             </div>
-                            <div className="space-y-2 mb-8 text-xs font-bold uppercase tracking-tighter">
-                                <div className="flex justify-between"><span className="text-gray-400">ID</span><span>{emp.employee_code}</span></div>
-                                <div className="flex justify-between"><span className="text-gray-400">Shift</span><span className="text-orange-600 font-black">{emp.shifts && emp.shifts.length > 0 ? emp.shifts.map(s => s.name).join(' & ') : (emp.shift?.name || 'Standard')}</span></div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400 font-bold uppercase tracking-widest text-[9px]">Status</span>
-                                    <span className={`font-black ${emp.status === 'active' ? 'text-green-600' : emp.status === 'on_leave' ? 'text-orange-600' : 'text-red-600'}`}>
+
+                            <div className="space-y-3 mb-8 text-xs font-semibold">
+                                <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700">
+                                    <span className="text-gray-400 uppercase tracking-wider">Staff ID</span>
+                                    <span className="dark:text-white">{emp.employee_code}</span>
+                                </div>
+                                <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700">
+                                    <span className="text-gray-400 uppercase tracking-wider">Shift</span>
+                                    <span className="text-blue-600 dark:text-blue-400 font-bold">{emp.shifts && emp.shifts.length > 0 ? emp.shifts.map(s => s.name).join(' & ') : (emp.shift?.name || 'Standard')}</span>
+                                </div>
+                                <div className="flex justify-between items-center pt-2">
+                                    <span className="text-gray-400 uppercase tracking-wider">Status</span>
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${emp.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                        emp.status === 'on_leave' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                            'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                        }`}>
                                         {emp.status}
                                     </span>
                                 </div>
                             </div>
-                            <div className="flex gap-2">
+
+                            <div className="flex gap-3">
                                 <button
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         onEdit(emp);
                                     }}
-                                    className="flex-1 py-4 bg-gray-50 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-orange-600 hover:text-white transition-all"
+                                    className="flex-1 py-3 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-blue-600 hover:text-white transition-all shadow-sm"
                                 >
                                     Edit Profile
                                 </button>
@@ -277,7 +365,7 @@ function EmployeeList({ employees, onEdit, onDelete, filterRole, setFilterRole, 
                                         e.stopPropagation();
                                         onDelete(emp.id);
                                     }}
-                                    className="px-4 py-4 bg-red-50 text-red-600 rounded-xl font-black hover:bg-red-600 hover:text-white transition-all"
+                                    className="px-4 py-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </button>
@@ -333,6 +421,16 @@ function AttendanceTab({ onUpdate, refreshTrigger }) {
             if (response.ok) {
                 fetchA();
                 if (onUpdate) onUpdate();
+
+                // Add Notification
+                if (window.addVclNotification) {
+                    const emp = attendance.find(a => a.id === empId);
+                    window.addVclNotification({
+                        type: 'staff',
+                        title: 'Attendance Recorded',
+                        message: `Employee "${emp?.name || 'Staff'}" marked as ${status.replace('_', ' ')} for ${selectedDate}.`
+                    });
+                }
             }
         } catch (error) {
             console.error('Attendance Error:', error);
@@ -363,48 +461,53 @@ function AttendanceTab({ onUpdate, refreshTrigger }) {
 
     return (
         <div className="space-y-6">
-            <div className="flex bg-gray-50 p-6 rounded-[2rem] items-center justify-between border border-gray-100">
-                <div className="flex items-center gap-4">
-                    <Calendar className="h-6 w-6 text-orange-600" />
-                    <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="bg-transparent border-none font-black uppercase text-xs" />
+            <div className="flex flex-col sm:flex-row bg-gray-50 dark:bg-gray-900/50 p-6 rounded-2xl md:rounded-3xl items-start sm:items-center justify-between border border-gray-100 dark:border-gray-800 gap-4">
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                    <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="bg-transparent border-none font-bold text-sm w-full sm:w-auto focus:ring-0 dark:text-white"
+                    />
                 </div>
-                <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Attendance Tracker</div>
+                <div className="hidden sm:block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Global Attendance Snapshot</div>
             </div>
 
-            <div className="bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-sm">
-                <table className="w-full text-left">
+            <div className="bg-white rounded-2xl sm:rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-sm overflow-x-auto custom-scrollbar">
+                <table className="min-w-[800px] w-full text-left">
                     <thead className="bg-gray-50/50 text-[10px] font-black uppercase text-gray-400 border-b">
                         <tr>
-                            <th className="p-6">Staff Member</th>
-                            <th className="p-6">Status</th>
-                            <th className="p-6 text-center">Clock In / Out</th>
-                            <th className="p-6 text-center">Hours</th>
-                            <th className="p-6 text-right">Action</th>
+                            <th className="p-4 sm:p-6">Staff Member</th>
+                            <th className="p-4 sm:p-6">Status</th>
+                            <th className="p-4 sm:p-6 text-center">Clock In / Out</th>
+                            <th className="p-4 sm:p-6 text-center">Hours</th>
+                            <th className="p-4 sm:p-6 text-right">Action</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y text-xs font-bold">
                         {attendance.length === 0 ? (
-                            <tr><td colSpan="5" className="p-12 text-center text-gray-400 font-black uppercase tracking-widest text-xs">No employees found</td></tr>
+                            <tr><td colSpan="5" className="p-12 text-center text-gray-400 font-black uppercase tracking-widest text-xs">No entries for this date</td></tr>
                         ) : attendance.map(r => (
                             <tr key={r.employee_id} className="hover:bg-gray-50/50 transition-colors">
-                                <td className="p-6">
+                                <td className="p-4 sm:p-6">
                                     <div className="flex items-center gap-4">
-                                        <div className="h-10 w-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 font-black">{r.employee_name.charAt(0)}</div>
+                                        <div className="h-10 w-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 font-black shrink-0">{r.employee_name.charAt(0)}</div>
                                         <div>
-                                            <p className="font-black text-sm">{r.employee_name}</p>
+                                            <p className="font-black text-sm leading-tight">{r.employee_name}</p>
                                             <div className="flex items-center gap-2 mt-0.5">
-                                                <p className="text-[10px] text-gray-400 uppercase tracking-tighter">{r.employee_code}</p>
-                                                <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-[8px] font-black uppercase">{r.shift_name}</span>
+                                                <p className="text-[9px] text-gray-400 uppercase tracking-tighter">{r.employee_code}</p>
+                                                <span className="px-1.5 py-0.5 bg-gray-50 text-gray-400 rounded text-[7px] font-black uppercase">{r.shift_name}</span>
                                             </div>
                                         </div>
                                     </div>
                                 </td>
-                                <td className="p-6">
-                                    <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${getStatusStyle(r.status)}`}>
+                                <td className="p-4 sm:p-6">
+                                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusStyle(r.status)}`}>
                                         {r.status === 'half_day' ? 'Half Day' : r.status === 'on_leave' ? 'On Leave' : r.status}
                                     </span>
                                 </td>
-                                <td className="p-6">
+                                <td className="p-4 sm:p-6">
                                     <div className="flex items-center justify-center gap-2">
                                         <input
                                             type="time"
@@ -414,7 +517,7 @@ function AttendanceTab({ onUpdate, refreshTrigger }) {
                                                     handleMark(r.employee_id, ['absent', 'upcoming', 'weekend'].includes(r.status) ? 'present' : r.status, e.target.value, r.time_out);
                                                 }
                                             }}
-                                            className="bg-gray-50 border-none rounded-lg p-2 text-[10px] font-black w-24"
+                                            className="bg-gray-50 border-none rounded-lg p-2 text-[10px] font-black w-24 focus:ring-1 focus:ring-orange-200"
                                         />
                                         <span className="text-gray-300">→</span>
                                         <input
@@ -425,19 +528,19 @@ function AttendanceTab({ onUpdate, refreshTrigger }) {
                                                     handleMark(r.employee_id, ['absent', 'upcoming', 'weekend'].includes(r.status) ? 'present' : r.status, r.time_in, e.target.value);
                                                 }
                                             }}
-                                            className="bg-gray-50 border-none rounded-lg p-2 text-[10px] font-black w-24"
+                                            className="bg-gray-50 border-none rounded-lg p-2 text-[10px] font-black w-24 focus:ring-1 focus:ring-orange-200"
                                         />
                                     </div>
                                 </td>
-                                <td className="p-6 text-center">
+                                <td className="p-4 sm:p-6 text-center">
                                     <span className="text-[10px] font-black text-gray-500">{formatHours(r.total_hours)}</span>
                                 </td>
-                                <td className="p-6 text-right">
+                                <td className="p-4 sm:p-6 text-right">
                                     <select
                                         value={r.status}
                                         disabled={marking === r.employee_id}
                                         onChange={(e) => handleMark(r.employee_id, e.target.value, r.time_in, r.time_out)}
-                                        className="bg-black text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-gray-800 transition-all border-none"
+                                        className="bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 pr-10 pl-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:border-blue-500 transition-all focus:ring-4 focus:ring-blue-500/10 dark:text-white"
                                     >
                                         <option value="upcoming" disabled>Upcoming</option>
                                         <option value="weekend" disabled>Weekend</option>
@@ -526,62 +629,62 @@ function PerformanceTab({ employees, refreshTrigger }) {
     return (
         <div className="space-y-10">
             {/* Graph Section */}
-            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                <div className="flex justify-between items-center mb-10">
+            <div className="bg-white p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-gray-100 shadow-sm">
+                <div className="flex justify-between items-center mb-6 sm:mb-10">
                     <div>
-                        <h3 className="text-2xl font-black uppercase tracking-tighter text-gray-900">Leave Approval</h3>
+                        <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tighter text-gray-900">Attendance Analytics</h3>
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Average Attendance vs Late Days</p>
                     </div>
                 </div>
-                <div className="h-[300px] w-full">
+                <div className="h-[250px] sm:h-[300px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#9ca3af' }} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#9ca3af' }} />
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 'bold', fill: '#9ca3af' }} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 'bold', fill: '#9ca3af' }} />
                             <Tooltip
                                 cursor={{ fill: '#f9fafb' }}
-                                contentStyle={{ borderRadius: '1.5rem', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold' }}
+                                contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '11px', fontWeight: 'bold' }}
                             />
-                            <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
-                            <Bar dataKey="Attendance" fill="#ea580c" radius={[6, 6, 0, 0]} barSize={40} />
-                            <Bar dataKey="Late Days" fill="#fca5a5" radius={[6, 6, 0, 0]} barSize={40} />
+                            <Legend wrapperStyle={{ paddingTop: '15px', fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                            <Bar dataKey="Attendance" fill="#ea580c" radius={[4, 4, 0, 0]} barSize={25} />
+                            <Bar dataKey="Late Days" fill="#fca5a5" radius={[4, 4, 0, 0]} barSize={25} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {aggregatedPerformance.map(p => (
-                    <div key={p.employee_id} className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col justify-between">
+                    <div key={p.employee_id} className="bg-white p-6 sm:p-8 rounded-2xl sm:rounded-[2rem] border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
                         <div>
-                            <div className="flex justify-between items-start mb-6">
-                                <div>
-                                    <h4 className="font-black uppercase text-gray-900">{p.employee?.name}</h4>
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase">{p.is_new ? 'New Personnel' : 'Performance Summary'}</p>
+                            <div className="flex justify-between items-start mb-4 sm:mb-6">
+                                <div className="max-w-[70%]">
+                                    <h4 className="font-black uppercase text-gray-900 leading-tight text-sm sm:text-base">{p.employee?.name}</h4>
+                                    <p className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase mt-0.5">{p.is_new ? 'New Personnel' : 'Status Summary'}</p>
                                 </div>
-                                <div className="px-3 py-1 bg-orange-50 text-orange-600 rounded-lg font-black text-sm">{p.avg_rating} ⭐</div>
+                                <div className="px-2 py-0.5 bg-orange-50 text-orange-600 rounded-lg font-black text-[10px] sm:text-xs shrink-0">{p.avg_rating} ⭐</div>
                             </div>
-                            <div className="space-y-4 mb-8">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Attendance</span>
-                                    <span className="text-xs font-black">{p.total_attendance} Days</span>
+                            <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
+                                <div className="flex justify-between items-center text-[10px] sm:text-xs">
+                                    <span className="font-bold text-gray-400 uppercase tracking-widest">Attendance</span>
+                                    <span className="font-black">{p.total_attendance} Days</span>
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-red-400">Total Late Days</span>
-                                    <span className="text-xs font-black text-red-500">{p.total_late} Days</span>
+                                <div className="flex justify-between items-center text-[10px] sm:text-xs">
+                                    <span className="font-bold text-gray-400 uppercase tracking-widest text-red-400">Late Days</span>
+                                    <span className="font-black text-red-500">{p.total_late} Days</span>
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Periods Tracked</span>
-                                    <span className="text-xs font-black">{p.count} Months</span>
+                                <div className="flex justify-between items-center text-[10px] sm:text-xs">
+                                    <span className="font-bold text-gray-400 uppercase tracking-widest">Tracking</span>
+                                    <span className="font-black">{p.count} Months</span>
                                 </div>
                                 {p.is_new && (
-                                    <p className="text-[9px] font-bold text-orange-500 bg-orange-50 p-2 rounded-lg text-center uppercase">Awaiting first cycle completion...</p>
+                                    <p className="text-[8px] font-bold text-orange-400 bg-orange-50/50 p-2 rounded-lg text-center uppercase">Awaiting cycle...</p>
                                 )}
                             </div>
                         </div>
-                        <div className="bg-gray-50 p-4 rounded-2xl flex justify-between items-center font-black text-[10px]">
-                            <span className="text-gray-400 uppercase tracking-widest">Overall Efficiency</span>
+                        <div className="bg-gray-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl flex justify-between items-center font-black text-[9px] sm:text-[10px]">
+                            <span className="text-gray-400 uppercase tracking-widest">Efficiency</span>
                             <span className="text-orange-600">{p.avg_efficiency}%</span>
                         </div>
                     </div>
@@ -622,6 +725,16 @@ function PayrollTab({ onUpdate, refreshTrigger }) {
             });
             fetchPay();
             if (onUpdate) onUpdate();
+
+            // Add Notification
+            if (window.addVclNotification) {
+                const record = payrolls.find(p => p.id === id);
+                window.addVclNotification({
+                    type: 'finance',
+                    title: 'Disbursement Executed',
+                    message: `Payroll payment of $${Number(record?.net_salary).toLocaleString()} processed for "${record?.employee?.name}".`
+                });
+            }
         } catch (e) {
             alert('Payment update failed.');
         }
@@ -680,30 +793,38 @@ function PayrollTab({ onUpdate, refreshTrigger }) {
 
     return (
         <div className="space-y-6">
-            <div className="flex bg-gray-900 text-white p-8 rounded-[2rem] items-center justify-between">
-                <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="bg-gray-800 border-none rounded-xl px-6 py-3 font-bold text-white uppercase text-xs" />
+            <div className="flex flex-col sm:flex-row bg-blue-600 text-white p-6 sm:p-8 rounded-[2rem] items-start sm:items-center justify-between gap-6 shadow-xl shadow-blue-500/10">
+                <div className="w-full sm:w-auto space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Selection Month</label>
+                    <input
+                        type="month"
+                        value={month}
+                        onChange={(e) => setMonth(e.target.value)}
+                        className="w-full bg-white/10 border-none rounded-xl px-4 py-2 font-bold text-white uppercase text-sm focus:ring-1 focus:ring-white/20"
+                    />
+                </div>
                 <button
                     onClick={handleGen}
                     disabled={generating}
-                    className="bg-orange-600 px-8 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-orange-500 disabled:opacity-50"
+                    className="w-full sm:w-auto bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white px-8 py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:opacity-90 disabled:opacity-50 transition-all active:scale-95 shadow-xl shadow-orange-500/20"
                 >
-                    {generating ? 'GENERATING...' : 'Initialize Cycle'}
+                    {generating ? 'Processing Cycle...' : 'Run Payroll Cycle'}
                 </button>
             </div>
-            <div className="bg-white rounded-2xl border overflow-hidden">
-                <table className="w-full text-left">
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden overflow-x-auto custom-scrollbar">
+                <table className="min-w-[1000px] w-full text-left">
                     <thead className="bg-gray-50 text-[10px] uppercase font-black text-gray-400">
                         <tr>
-                            <th className="p-6">Staff</th>
-                            <th className="p-6">Base</th>
-                            <th className="p-6 text-center">Shift & Attendance</th>
-                            <th className="p-6 text-right">Adj & Deductions</th>
-                            <th className="p-6 text-right">Net Disbursement</th>
-                            <th className="p-6 text-center">Status</th>
-                            <th className="p-6 text-right">Action</th>
+                            <th className="p-4 sm:p-6">Staff</th>
+                            <th className="p-4 sm:p-6">Base</th>
+                            <th className="p-4 sm:p-6 text-center">Shift & Stats</th>
+                            <th className="p-4 sm:p-6 text-right">Adj / Deductions</th>
+                            <th className="p-4 sm:p-6 text-right">Net Pay</th>
+                            <th className="p-4 sm:p-6 text-center">Status</th>
+                            <th className="p-4 sm:p-6 text-right">Action</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y text-xs font-bold uppercase">
+                    <tbody className="divide-y text-[11px] sm:text-xs font-bold uppercase">
                         {payrolls.map(py => (
                             <tr key={py.id} className={`hover:bg-gray-50 ${py.is_live ? 'bg-orange-50/30' : ''}`}>
                                 <td className="p-6">
@@ -840,24 +961,45 @@ function LeaveTab({ employees, onUpdate, refreshTrigger }) {
             });
             fetchL();
             if (onUpdate) onUpdate();
+
+            // Add Notification
+            if (window.addVclNotification) {
+                const leave = leaves.find(l => l.id === id);
+                window.addVclNotification({
+                    type: 'staff',
+                    title: `Leave ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+                    message: `Leave request for "${leave?.employee?.name || 'Staff'}" has been ${status}.`
+                });
+            }
         } catch (e) { console.error(e); }
     };
 
     useEffect(() => { fetchL(); }, [refreshTrigger]);
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center bg-blue-50 p-6 rounded-3xl"><h3 className="text-xl font-black uppercase text-blue-900">Leave Approval</h3><button onClick={() => setShow(true)} className="bg-blue-600 text-white px-8 py-3 rounded-xl font-black uppercase text-[10px]">New Request</button></div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-blue-50 dark:bg-blue-900/10 p-6 rounded-[2rem] gap-6 border border-blue-100 dark:border-blue-900/30">
+                <div className="space-y-1">
+                    <h3 className="text-xl font-bold text-blue-900 dark:text-blue-400 tracking-tight">Time-Off Requests</h3>
+                    <p className="text-sm text-blue-600/60 dark:text-blue-400/60 font-medium">Approve or manage employee leave applications</p>
+                </div>
+                <button
+                    onClick={() => setShow(true)}
+                    className="w-full sm:w-auto bg-blue-600 text-white px-8 py-3.5 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all"
+                >
+                    New Request
+                </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 {leaves.map(l => (
-                    <div key={l.id} className="bg-white p-6 rounded-3xl border border-dashed relative">
-                        <div className={`absolute top-0 right-0 px-4 py-1 rounded-bl-xl text-[10px] font-black uppercase ${l.status === 'approved' ? 'bg-green-500 text-white' : l.status === 'rejected' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}`}>{l.status}</div>
-                        <h4 className="font-black uppercase mb-1">{l.employee?.name}</h4>
-                        <div className="flex gap-2 mb-2"><span className="px-2 py-0.5 bg-gray-100 rounded text-[8px] font-bold uppercase">{l.type}</span></div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter mb-4">{l.start_date} &rarr; {l.end_date}</p>
+                    <div key={l.id} className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-3xl border border-gray-100 relative group hover:shadow-md transition-shadow">
+                        <div className={`absolute top-0 right-0 px-3 sm:px-4 py-1 rounded-bl-xl rounded-tr-2xl sm:rounded-tr-3xl text-[9px] sm:text-[10px] font-black uppercase ${l.status === 'approved' ? 'bg-green-500 text-white' : l.status === 'rejected' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}`}>{l.status}</div>
+                        <h4 className="font-black uppercase mb-1 text-sm sm:text-base pr-12">{l.employee?.name}</h4>
+                        <div className="flex gap-2 mb-3"><span className="px-2 py-0.5 bg-gray-50 text-gray-400 rounded text-[7px] font-bold uppercase">{l.type}</span></div>
+                        <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-tighter mb-4">{l.start_date} &rarr; {l.end_date}</p>
                         {l.status === 'pending' && (
                             <div className="flex gap-2 border-t pt-4">
-                                <button onClick={() => handleStatus(l.id, 'approved')} className="flex-1 bg-green-600 text-white py-2 rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-green-700 transition-all">Approve</button>
-                                <button onClick={() => handleStatus(l.id, 'rejected')} className="flex-1 bg-red-50 text-red-500 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-red-100 transition-all">Reject</button>
+                                <button onClick={() => handleStatus(l.id, 'approved')} className="flex-1 bg-green-600 text-white py-2 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-green-700 transition-all">Approve</button>
+                                <button onClick={() => handleStatus(l.id, 'rejected')} className="flex-1 bg-red-50 text-red-500 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-red-100 transition-all">Reject</button>
                             </div>
                         )}
                     </div>
@@ -930,7 +1072,7 @@ function ShiftTab({ onEdit, refreshTrigger }) {
         return currentTime >= start && currentTime <= end;
     };
     return (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {shifts.map(s => (
                 <div key={s.id} onClick={() => onEdit(s)} className={`bg-gray-900 text-white p-8 rounded-[2rem] flex flex-col items-center border border-gray-800 shadow-xl group hover:border-orange-600 transition-all cursor-pointer ${isNow(s.start_time, s.end_time) ? 'ring-2 ring-orange-600 ring-offset-4 ring-offset-gray-900 border-orange-600' : ''}`}>
                     <Clock className={`h-12 w-12 mb-6 group-hover:scale-110 transition-transform ${isNow(s.start_time, s.end_time) ? 'text-orange-500 animate-pulse' : 'text-orange-600'}`} />
@@ -984,6 +1126,9 @@ function EmployeeModal({ onClose, onSave, employee = null }) {
         hire_date: employee?.hire_date ? employee.hire_date.substring(0, 10) : '',
         role: employee?.role || 'cashier',
         status: employee?.status || 'active',
+        gender: employee?.gender || 'male',
+        address: employee?.address || '',
+        emergency_contact: employee?.emergency_contact || '',
         permissions: employee?.permissions || [],
         shift_ids: employee?.shifts?.map(s => s.id) || (employee?.shift_id ? [employee.shift_id] : [])
     });
@@ -993,11 +1138,14 @@ function EmployeeModal({ onClose, onSave, employee = null }) {
     const toggle = (id) => { const p = [...form.permissions]; if (p.includes(id)) setForm({ ...form, permissions: p.filter(x => x !== id) }); else setForm({ ...form, permissions: [...p, id] }); };
     const toggleShift = (id) => { const s = [...form.shift_ids]; if (s.includes(id)) setForm({ ...form, shift_ids: s.filter(x => x !== id) }); else setForm({ ...form, shift_ids: [...s, id] }); };
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[130] p-4">
-            <div className="bg-white rounded-[4rem] w-full max-w-4xl p-12 overflow-y-auto max-h-[90vh] shadow-2xl">
-                <div className="flex justify-between items-center mb-12"><h2 className="text-4xl font-black uppercase tracking-tighter"></h2><button onClick={onClose} className="bg-gray-100 p-4 rounded-full"><XCircle /></button></div>
-                <form onSubmit={async e => { e.preventDefault(); setSubmitting(true); const errs = await onSave(form); if (errs) setErrors(errs); setSubmitting(false); }} className="space-y-10">
-                    <div className="grid grid-cols-2 gap-8">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[130] p-4 sm:p-6">
+            <div className="bg-white rounded-[2rem] sm:rounded-[4rem] w-full max-w-4xl p-6 sm:p-12 overflow-y-auto max-h-[90vh] shadow-2xl">
+                <div className="flex justify-between items-center mb-8 sm:mb-12">
+                    <h2 className="text-2xl sm:text-4xl font-black uppercase tracking-tighter shrink-0">{employee ? 'Update Profile' : 'New Personnel'}</h2>
+                    <button onClick={onClose} className="bg-gray-100 p-2 sm:p-4 rounded-full"><XCircle /></button>
+                </div>
+                <form onSubmit={async e => { e.preventDefault(); setSubmitting(true); const errs = await onSave(form); if (errs) setErrors(errs); setSubmitting(false); }} className="space-y-6 sm:space-y-10">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
                         <div>
                             <FormInput label="Staff Name" value={form.name} onChange={v => setForm({ ...form, name: v })} required />
                             {errors.name && <p className="text-red-500 text-[10px] font-bold mt-2 px-4 uppercase">{errors.name[0]}</p>}
@@ -1031,6 +1179,20 @@ function EmployeeModal({ onClose, onSave, employee = null }) {
                             </div>
                         </div>
                         <div>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">Gender Identification</label>
+                            <select value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })} className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-3xl p-6 font-bold text-gray-900 dark:text-white focus:ring-4 focus:ring-blue-500/10 transition-all uppercase text-xs">
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <FormInput label="Emergency Response Contact" value={form.emergency_contact} onChange={v => setForm({ ...form, emergency_contact: v })} placeholder="Contact Name & Phone" />
+                        </div>
+                        <div className="col-span-2">
+                            <FormInput label="Residential/Permanent Address" value={form.address} onChange={v => setForm({ ...form, address: v })} placeholder="Complete street address, city, state" />
+                        </div>
+                        <div>
                             <FormInput label="Base Salary" type="number" value={form.salary} onChange={v => setForm({ ...form, salary: v })} />
                             {errors.salary && <p className="text-red-500 text-[10px] font-bold mt-2 px-4 uppercase">{errors.salary[0]}</p>}
                         </div>
@@ -1043,8 +1205,8 @@ function EmployeeModal({ onClose, onSave, employee = null }) {
                             {errors.hire_date && <p className="text-red-500 text-[10px] font-bold mt-2 px-4 uppercase">{errors.hire_date[0]}</p>}
                         </div>
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">Job Role</label>
-                            <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} className="w-full bg-gray-50 border-none rounded-3xl p-6 font-bold text-gray-900 focus:ring-4 focus:ring-orange-100 transition-all uppercase text-xs" required>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">Job Role Hierarchy</label>
+                            <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-3xl p-6 font-bold text-gray-900 dark:text-white focus:ring-4 focus:ring-blue-500/10 transition-all uppercase text-xs" required>
                                 <option value="cashier">Cashier</option>
                                 <option value="manager">Manager</option>
                                 <option value="admin">Administrator</option>
@@ -1054,8 +1216,13 @@ function EmployeeModal({ onClose, onSave, employee = null }) {
                             {errors.role && <p className="text-red-500 text-[10px] font-bold mt-2 px-4 uppercase">{errors.role[0]}</p>}
                         </div>
                     </div>
-                    <div><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Functional Permissions Matrix</p><div className="flex flex-wrap gap-4">{mods.map(m => <button key={m.id} type="button" onClick={() => toggle(m.id)} className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-wider border-2 transition-all ${form.permissions.includes(m.id) ? 'bg-orange-600 border-orange-600 text-white shadow-xl' : 'bg-white border-gray-100 text-gray-400 opacity-60'}`}>{m.name}</button>)}</div></div>
-                    <div className="flex gap-4 pt-4"><button type="submit" disabled={submitting} className="flex-1 py-6 bg-black text-white font-black uppercase text-xs tracking-widest rounded-3xl hover:bg-gray-900 transition-all shadow-2xl disabled:opacity-50">{submitting ? 'PROCESSING...' : 'COMMIT DATA'}</button><button type="button" onClick={onClose} className="flex-1 py-6 bg-gray-50 font-black uppercase text-xs tracking-widest rounded-3xl">EXIT</button></div>
+                    <div><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 sm:mb-6">Operational Permissions Matrix</p><div className="flex flex-wrap gap-2 sm:gap-4">{mods.map(m => <button key={m.id} type="button" onClick={() => toggle(m.id)} className={`flex-1 sm:flex-none px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-wider border-2 transition-all ${form.permissions.includes(m.id) ? 'bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] border-transparent text-white shadow-xl' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-800 text-gray-400 opacity-60'}`}>{m.name}</button>)}</div></div>
+                    <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                        <button type="submit" disabled={submitting} className="flex-1 order-1 sm:order-2 py-4 sm:py-6 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white font-black uppercase text-xs tracking-widest rounded-2xl sm:rounded-[2.5rem] hover:opacity-90 transition-all shadow-2xl disabled:opacity-50">
+                            {submitting ? 'PROCESSING...' : (employee ? 'COMMIT UPDATES' : 'FINALIZE REGISTRATION')}
+                        </button>
+                        <button type="button" onClick={onClose} className="flex-1 order-2 sm:order-1 py-4 sm:py-6 bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-black uppercase text-xs tracking-widest rounded-2xl sm:rounded-[2.5rem] hover:bg-gray-100 dark:hover:bg-gray-700">EXIT</button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -1087,8 +1254,8 @@ function ShiftSettingsModal({ shift, onClose, onSave }) {
                     <FormInput label="Late Grace (Mins)" type="number" value={form.late_threshold} onChange={v => setForm({ ...form, late_threshold: v })} required />
 
                     <div className="pt-4">
-                        <button type="submit" disabled={submitting} className="w-full py-5 bg-orange-600 text-white font-black uppercase text-xs tracking-widest rounded-[2rem] hover:bg-orange-700 transition-all shadow-xl disabled:opacity-50">
-                            {submitting ? 'SAVING CHANGES...' : 'SAVE SETTINGS'}
+                        <button type="submit" disabled={submitting} className="w-full py-5 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white font-black uppercase text-xs tracking-widest rounded-[2rem] hover:opacity-90 transition-all shadow-xl disabled:opacity-50">
+                            {submitting ? 'SAVING CHANGES...' : 'COMMIT SETTINGS'}
                         </button>
                     </div>
                 </form>
@@ -1102,7 +1269,7 @@ function FormInput({ label, type = "text", value, onChange, ...props }) {
         <div className="space-y-2">
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">{label}</label>
             <input type={type} value={value} onChange={e => onChange(e.target.value)}
-                className="w-full bg-gray-50 border-none rounded-3xl p-6 font-bold text-gray-900 focus:ring-4 focus:ring-orange-100 transition-all" {...props} />
+                className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-[2rem] p-6 font-bold text-gray-900 dark:text-white focus:ring-4 focus:ring-blue-500/10 transition-all" {...props} />
         </div>
     );
 }

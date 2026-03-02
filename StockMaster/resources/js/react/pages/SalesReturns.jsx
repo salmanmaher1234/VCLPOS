@@ -149,6 +149,16 @@ export default function Returns() {
                 setQuantity(1);
                 setCustomerName('');
                 setReason('');
+                // Add Notification
+                if (window.addVclNotification) {
+                    window.addVclNotification({
+                        type: 'sale',
+                        title: 'Sales Return Submitted',
+                        message: `Return request of ${quantity}x ${isCustomItem ? customProductName : selectedProduct.name} from ${customerName || 'Customer'}.`,
+                        invoice: data.reference || `#SRET-${data.id || Date.now()}`
+                    });
+                }
+
                 fetchReturns(); // Refresh list
                 alert('Return submitted for approval!');
             } else {

@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
+import Notifications from "./pages/Notifications";
 import Products from "./pages/Products";
 import SalesList from "./pages/Sales";
 import SalesReturns from "./pages/SalesReturns"; // Renamed from Returns
@@ -29,6 +30,33 @@ import CustomerShow from "./pages/CustomerShow";
 
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
+
+
+// Global Notification Helper (Final Robust version)
+window.addVclNotification = (notification) => {
+    try {
+        const saved = JSON.parse(localStorage.getItem('vcl_notifications') || '[]');
+        const now = new Date();
+        const newNotification = {
+            id: Date.now(),
+            timestamp: now.toISOString(), // Standard timestamp for sorting/filtering
+            time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            date: now.toISOString().split('T')[0],
+            read: false,
+            ...notification
+        };
+        const updated = [newNotification, ...saved].slice(0, 100);
+        localStorage.setItem('vcl_notifications', JSON.stringify(updated));
+
+        console.warn("🔔 SYSTEM NOTIFICATION:", newNotification.title, newNotification.message);
+
+        // Dispatch both standard and detail events for maximum compatibility
+        window.dispatchEvent(new Event('vcl-notification-added'));
+        window.dispatchEvent(new CustomEvent('vcl-notification-event', { detail: newNotification }));
+    } catch (e) {
+        console.error("❌ Notification Engine Error:", e);
+    }
+};
 
 export default function App() {
     const [path, setPath] = React.useState(window.location.pathname);
@@ -153,6 +181,9 @@ export default function App() {
             break;
         case "/customer-details":
             Component = CustomerDetails;
+            break;
+        case "/notifications":
+            Component = Notifications;
             break;
         case (currentPath.match(/\/customers\/\d+/) || {}).input:
             Component = CustomerShow;

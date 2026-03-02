@@ -87,6 +87,17 @@ export default function Adjustments() {
 
             if (response.ok) {
                 setSuccessMessage(data.message);
+
+                // Add Notification
+                if (window.addVclNotification) {
+                    window.addVclNotification({
+                        type: 'low_stock',
+                        title: 'Stock Adjusted',
+                        message: `Stock level manually adjusted for ${formData.products.length} items.`,
+                        invoice: formData.reference
+                    });
+                }
+
                 setShowModal(false);
                 resetForm();
                 fetchAdjustments();

@@ -174,6 +174,17 @@ export default function Purchases() {
 
             const data = await res.json();
             if (res.ok) {
+                // Add Notification
+                if (window.addVclNotification) {
+                    const supplierName = suppliers.find(s => s.id == selectedSupplier)?.name || 'Supplier';
+                    window.addVclNotification({
+                        type: 'payment',
+                        title: 'Stock Received (Purchase)',
+                        message: `Stock worth $${grandTotal.toFixed(2)} received from ${supplierName}.`,
+                        invoice: referenceNo || `#PUR-${data.id || Date.now()}`
+                    });
+                }
+
                 handleCloseModal();
                 fetchPurchases();
                 alert('Purchase Order created! Stock received.');
