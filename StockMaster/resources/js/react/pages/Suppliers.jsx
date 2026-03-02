@@ -75,6 +75,14 @@ export default function Suppliers() {
                 setShowModal(false);
                 resetForm();
                 fetchSuppliers();
+                // Add Notification
+                if (window.addVclNotification) {
+                    window.addVclNotification({
+                        type: 'product', // or generic
+                        title: editingSupplier ? 'Supplier Profile Updated' : 'New Supplier Partner',
+                        message: `Contract details for "${formData.name}" have been ${editingSupplier ? 'synchronized' : 'registered'}.`
+                    });
+                }
                 setTimeout(() => setSuccessMessage(''), 3000);
             } else {
                 setErrors(data.errors || {});
@@ -100,6 +108,17 @@ export default function Suppliers() {
             if (response.ok) {
                 const data = await response.json();
                 setSuccessMessage(data.message);
+
+                // Add Notification
+                if (window.addVclNotification) {
+                    const supp = suppliers.find(s => s.id === id);
+                    window.addVclNotification({
+                        type: 'high_stock', // using existing icons
+                        title: 'Supplier Terminated',
+                        message: `Supplier relationship with "${supp?.name || id}" has been removed from the directory.`
+                    });
+                }
+
                 fetchSuppliers();
                 setTimeout(() => setSuccessMessage(''), 3000);
             }

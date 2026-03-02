@@ -161,6 +161,17 @@ export default function PurchaseReturns() {
 
             const data = await res.json();
             if (res.ok) {
+                // Add Notification
+                if (window.addVclNotification) {
+                    const supplierName = suppliers.find(s => s.id == selectedSupplier)?.name || 'Supplier';
+                    window.addVclNotification({
+                        type: 'payment',
+                        title: 'Purchase Return Completed',
+                        message: `Stock worth $${grandTotal.toFixed(2)} returned to ${supplierName}.`,
+                        invoice: data.reference || `#PRET-${data.id || Date.now()}`
+                    });
+                }
+
                 setShowCreateModal(false);
                 // Reset Form
                 setNote('');
