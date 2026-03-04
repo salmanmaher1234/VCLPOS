@@ -202,7 +202,7 @@ export default function Products() {
                             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Product List</h2>
                             <button
                                 onClick={openAddModal}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                className="px-6 py-2.5 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] hover:opacity-90 transition-all shadow-lg shadow-orange-500/20"
                             >
                                 Add Product
                             </button>
@@ -441,7 +441,7 @@ export default function Products() {
                                     </button>
                                     <button
                                         type="submit"
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                        className="px-6 py-2.5 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] hover:opacity-90 transition-all shadow-lg shadow-orange-500/20"
                                     >
                                         {editingProduct ? 'Update' : 'Create'}
                                     </button>

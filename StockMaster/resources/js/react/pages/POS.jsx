@@ -876,7 +876,7 @@ export default function POS() {
                                 </button>
                                 <button
                                     onClick={() => processSale(false)}
-                                    className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700"
+                                    className="w-full bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white font-bold py-3.5 rounded-xl hover:opacity-90 shadow-lg shadow-orange-500/20 uppercase tracking-widest text-[11px] transition-all"
                                 >
                                     Complete (No Print)
                                 </button>
@@ -896,7 +896,7 @@ export default function POS() {
             {/* Toast Feedback */}
             {toastMessage && (
                 <div className="fixed top-20 right-4 z-50 animate-bounce-in">
-                    <div className="bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3">
+                    <div className="bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white px-6 py-4 rounded-xl shadow-2xl shadow-orange-500/20 flex items-center gap-3">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                         <span className="font-semibold">{toastMessage}</span>
                     </div>
@@ -1314,7 +1314,7 @@ export default function POS() {
                                 <button
                                     onClick={handleHoldOrder}
                                     disabled={cart.length === 0}
-                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition-all duration-200 text-xs font-bold h-10 shadow-lg shadow-blue-500/20"
+                                    className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white hover:opacity-90 active:scale-95 transition-all duration-200 text-[10px] uppercase tracking-widest font-bold shadow-lg shadow-orange-500/20"
                                 >
                                     Hold
                                 </button>

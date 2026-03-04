@@ -80,4 +80,59 @@ class CustomerController extends Controller
             'message' => 'Customer deleted successfully'
         ]);
     }
+
+    public function activity(Request $request, $id)
+    {
+        $customer = Customer::where('user_id', $request->user()->id)->findOrFail($id);
+
+        // Fetch Sales
+        $sales = \App\Models\Sale::where('user_id', $request->user()->id)
+            ->where('customer_id', $id)
+            ->with(['items.product'])
+            ->get()
+            ->map(function ($sale) {
+                return [
+                    'id' => 'sale_' . $sale->id,
+                    'record_id' => $sale->id,
+                    'timestamp' => $sale->created_at,
+                    'date' => $sale->created_at->format('Y-m-d H:i'),
+                    'bill_no' => $sale->receipt_number ?? '#' . str_pad($sale->id, 6, '0', STR_PAD_LEFT),
+                    'product' => $sale->items->first() && $sale->items->first()->product 
+                                 ? $sale->items->first()->product->name . ($sale->items->count() > 1 ? ' (+' . ($sale->items->count() - 1) . ' more)' : '') 
+                                 : 'Unknown Items',
+                    'amount' => (float)$sale->total_amount,
+                    'type' => $sale->payment_method ?? 'Purchase',
+                    'status' => 'accept', // POS sales are completed purchases
+                    'source' => 'sale'
+                ];
+            });
+
+        // Fetch Returns
+        $returns = \App\Models\ProductReturn::where('user_id', $request->user()->id)
+            ->where('customer_name', $customer->name)
+            ->with('product')
+            ->get()
+            ->map(function ($ret) {
+                return [
+                    'id' => 'return_' . $ret->id,
+                    'record_id' => $ret->id,
+                    'timestamp' => $ret->created_at,
+                    'date' => $ret->created_at->format('Y-m-d H:i'),
+                    'bill_no' => 'RET-' . str_pad($ret->id, 6, '0', STR_PAD_LEFT),
+                    'product' => $ret->product_name ?? ($ret->product ? $ret->product->name : 'Unknown Product'),
+                    'amount' => (float)$ret->refund_amount,
+                    'type' => ucfirst($ret->return_type),
+                    'status' => strtolower($ret->status) === 'pending' ? 'refund' : 
+                                (strtolower($ret->status) === 'approved' || strtolower($ret->status) === 'completed' ? 'refund' : 'reject'),
+                    'source' => 'return'
+                ];
+            });
+
+        // Merge and sort descending
+        $activity = $sales->concat($returns)->sortByDesc('timestamp')->values();
+
+        return response()->json([
+            'activity' => $activity
+        ]);
+    }
 }

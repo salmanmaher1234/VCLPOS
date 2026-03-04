@@ -1,10 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Eye, Edit, Trash2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Search, Eye, Edit, Trash2, UserPlus, Save, X } from 'lucide-react';
+
+const Modal = ({ isOpen, onClose, title, children }) => {
+    if (!isOpen) return null;
+    return createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+            <div className="bg-white dark:bg-gray-800 w-full max-w-2xl rounded-3xl shadow-2xl p-6 sm:p-10 animate-scale-in max-h-[90vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-6 pb-6 border-b border-gray-100 dark:border-gray-700">
+                    <div>
+                        <h3 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{title}</h3>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mt-1">Initialize Personnel Record</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors">
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+                {children}
+            </div>
+        </div>,
+        document.body
+    );
+};
 
 export default function CustomerDetails() {
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Add Customer Modal State
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [formData, setFormData] = useState({
+        name: '', email: '', phone: '', address: '', city: '', country: '', type: 'B2C', credit_limit: ''
+    });
+    const [errors, setErrors] = useState({});
+    const [successMessage, setSuccessMessage] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         // Fetching all currently. If pagination is huge, you'd add sever side search
@@ -72,6 +103,53 @@ export default function CustomerDetails() {
         window.dispatchEvent(new Event('pushstate'));
     };
 
+    const handleAddSubmit = async (e) => {
+        e.preventDefault();
+        setErrors({});
+        setIsSubmitting(true);
+        const token = localStorage.getItem('auth_token');
+
+        try {
+            const response = await fetch('/api/customers', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setSuccessMessage(data.message);
+
+                if (window.addVclNotification) {
+                    window.addVclNotification({
+                        type: 'customer',
+                        title: 'Registry Updated',
+                        message: `Personnel "${formData.name}" has been added to the directory.`
+                    });
+                }
+
+                fetchCustomers(); // Refresh list
+
+                setTimeout(() => {
+                    setIsAddModalOpen(false);
+                    setFormData({ name: '', email: '', phone: '', address: '', city: '', country: '', type: 'B2C', credit_limit: '' });
+                    setSuccessMessage('');
+                }, 1000);
+            } else {
+                setErrors(data.errors || {});
+            }
+        } catch (error) {
+            console.error('Error saving customer:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const filteredCustomers = customers.filter(c => {
         const search = searchTerm.toLowerCase();
         return (c.name && c.name.toLowerCase().includes(search)) ||
@@ -95,15 +173,24 @@ export default function CustomerDetails() {
                     <p className="text-gray-500 font-medium text-sm">Manage your client base and loyalty records</p>
                 </div>
 
-                <div className="relative w-full md:w-1/3 group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                    <input
-                        type="text"
-                        placeholder="Search by name, phone or email..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="block w-full pl-12 pr-6 py-3.5 bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm font-semibold transition-all dark:text-white"
-                    />
+                <div className="flex flex-col sm:flex-row w-full md:w-auto gap-4 items-center">
+                    <div className="relative w-full sm:w-80 group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                        <input
+                            type="text"
+                            placeholder="Search by name, phone or email..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="block w-full pl-12 pr-6 py-3.5 bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm font-semibold transition-all dark:text-white"
+                        />
+                    </div>
+                    <button
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white rounded-xl hover:opacity-90 transition-all font-bold uppercase tracking-widest text-[11px] shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 active:scale-95"
+                    >
+                        <UserPlus className="w-5 h-5" />
+                        New Customer
+                    </button>
                 </div>
             </div>
 
@@ -146,12 +233,12 @@ export default function CustomerDetails() {
                                         </span>
                                     </td>
                                     <td className="px-8 py-6">
-                                        <div className="flex justify-end gap-3 translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all">
+                                        <div className="flex justify-end gap-3 transition-all">
                                             <button
                                                 onClick={() => handleViewProfile(customer.id)}
                                                 className="px-6 py-3 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white rounded-xl hover:opacity-90 transition-all text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-orange-500/20"
                                             >
-                                                Intelligence Profile
+                                                View Profile
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(customer.id)}
@@ -203,7 +290,7 @@ export default function CustomerDetails() {
                                     onClick={() => handleViewProfile(customer.id)}
                                     className="w-full py-4 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white rounded-2xl font-bold uppercase text-[10px] tracking-widest shadow-lg shadow-orange-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                                 >
-                                    Open Intelligence Stream
+                                    View Profile
                                 </button>
                             </div>
                         ))
@@ -217,6 +304,96 @@ export default function CustomerDetails() {
                     )}
                 </div>
             </div>
-        </main>
+
+            {/* Add Customer Modal */}
+            <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="New Customer">
+                {successMessage && (
+                    <div className="mb-6 p-4 bg-green-100 border-l-4 border-green-500 text-green-800 rounded-2xl shadow-sm font-bold animate-in slide-in-from-top-4">
+                        {successMessage}
+                    </div>
+                )}
+                <form onSubmit={handleAddSubmit} className="space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Full Identity <span className="text-red-500">*</span></label>
+                            <input
+                                type="text"
+                                required
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 rounded-xl font-semibold text-gray-700 dark:text-white transition-all outline-none text-sm"
+                                placeholder="e.g. Michael Chen"
+                            />
+                            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Primary Contact <span className="text-red-500">*</span></label>
+                            <input
+                                type="text"
+                                required
+                                value={formData.phone}
+                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 rounded-xl font-semibold text-gray-700 dark:text-white transition-all outline-none text-sm"
+                                placeholder="Phone number"
+                            />
+                            {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone[0]}</p>}
+                        </div>
+
+                        <div className="space-y-2 md:col-span-2">
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Communications (Email)</label>
+                            <input
+                                type="email"
+                                value={formData.email}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 rounded-xl font-semibold text-gray-700 dark:text-white transition-all outline-none text-sm"
+                                placeholder="Email address"
+                            />
+                        </div>
+
+                        <div className="space-y-2 md:col-span-2">
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Physical/Billing Address</label>
+                            <input
+                                type="text"
+                                value={formData.address}
+                                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 rounded-xl font-semibold text-gray-700 dark:text-white transition-all outline-none text-sm"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Market Classification</label>
+                            <select
+                                value={formData.type}
+                                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 rounded-xl font-bold text-xs uppercase cursor-pointer dark:text-white"
+                            >
+                                <option value="B2C">Individual (B2C)</option>
+                                <option value="B2B">Corporate (B2B)</option>
+                                <option value="VIP">Executive/VIP</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="pt-6 flex justify-end gap-4">
+                        <button
+                            type="button"
+                            onClick={() => setIsAddModalOpen(false)}
+                            className="px-6 py-4 text-gray-500 hover:bg-gray-100 rounded-2xl font-bold text-xs uppercase tracking-widest transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className={`flex items-center gap-3 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white px-8 py-4 rounded-2xl shadow-xl shadow-orange-500/20 hover:opacity-90 transition-all font-bold uppercase tracking-widest text-[11px] ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
+                        >
+                            <Save className="w-4 h-4" />
+                            {isSubmitting ? 'Saving...' : 'Submit'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+        </main >
     );
 }

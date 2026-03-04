@@ -82,6 +82,7 @@ Route::middleware('auth:sanctum')->get('/dashboard-data', function (Request $req
 Route::middleware('auth:sanctum')->apiResource('products', App\Http\Controllers\Api\ProductController::class);
 
 // Customers API
+Route::get('/customers/{id}/activity', [App\Http\Controllers\Api\CustomerController::class, 'activity'])->middleware('auth:sanctum');
 Route::middleware('auth:sanctum')->apiResource('customers', App\Http\Controllers\Api\CustomerController::class);
 
 // Suppliers API

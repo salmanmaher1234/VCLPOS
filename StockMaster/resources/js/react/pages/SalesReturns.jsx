@@ -229,7 +229,7 @@ export default function Returns() {
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Returns & Replacements</h1>
                 <button
                     onClick={() => setShowCreateModal(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-xl flex items-center gap-2 shadow-lg shadow-blue-500/30 transition-all"
+                    className="bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white font-bold py-2.5 px-6 rounded-[1rem] flex items-center gap-2 shadow-lg shadow-orange-500/20 hover:opacity-90 transition-all uppercase text-[10px] tracking-widest"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                     New Return
@@ -526,9 +526,9 @@ export default function Returns() {
                         onClick={handleCreateReturn}
                         disabled={processing}
                         className={`w-full py-3 rounded-xl font-bold text-white shadow-lg transition-all
-                            ${returnType === 'refund'
+                    ${returnType === 'refund'
                                 ? 'bg-red-600 hover:bg-red-700 shadow-red-500/30'
-                                : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30'
+                                : 'bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] shadow-orange-500/30 hover:opacity-90 uppercase tracking-widest text-[11px]'
                             } ${processing ? 'opacity-75 cursor-wait' : ''}`}
                     >
                         {processing ? 'Processing...' : 'Submit Request for Approval'}
