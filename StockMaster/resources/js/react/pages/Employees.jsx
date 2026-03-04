@@ -355,7 +355,7 @@ function EmployeeList({ employees, onEdit, onDelete, filterRole, setFilterRole, 
                                         e.stopPropagation();
                                         onEdit(emp);
                                     }}
-                                    className="flex-1 py-3 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                    className="flex-1 py-3 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-gradient-to-r hover:from-[#FF7d1f] hover:to-[#2b59ff] hover:text-white transition-all shadow-sm hover:shadow-orange-500/20 hover:shadow-lg"
                                 >
                                     Edit Profile
                                 </button>
@@ -793,7 +793,7 @@ function PayrollTab({ onUpdate, refreshTrigger }) {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row bg-blue-600 text-white p-6 sm:p-8 rounded-[2rem] items-start sm:items-center justify-between gap-6 shadow-xl shadow-blue-500/10">
+            <div className="flex flex-col sm:flex-row bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white p-6 sm:p-8 rounded-[2rem] items-start sm:items-center justify-between gap-6 shadow-xl shadow-orange-500/20">
                 <div className="w-full sm:w-auto space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Selection Month</label>
                     <input
@@ -984,7 +984,7 @@ function LeaveTab({ employees, onUpdate, refreshTrigger }) {
                 </div>
                 <button
                     onClick={() => setShow(true)}
-                    className="w-full sm:w-auto bg-blue-600 text-white px-8 py-3.5 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all"
+                    className="w-full sm:w-auto bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white px-8 py-3.5 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:opacity-90 shadow-lg shadow-orange-500/20 transition-all"
                 >
                     New Request
                 </button>

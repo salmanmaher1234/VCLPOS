@@ -142,7 +142,7 @@ const Expenses = () => {
                 </div>
                 <button
                     onClick={() => setShowModal(true)}
-                    className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-2.5 rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+                    className="flex items-center gap-2 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] hover:opacity-90 text-white px-6 py-3.5 rounded-xl font-bold uppercase tracking-widest text-[11px] shadow-lg shadow-orange-500/20 transition-all active:scale-95"
                 >
                     <Plus size={20} />
                     <span>Add Expense</span>
@@ -342,7 +342,7 @@ const Expenses = () => {
                                 <button
                                     type="submit"
                                     disabled={processing}
-                                    className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-lg shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                                    className="flex-1 px-6 py-3.5 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white rounded-xl font-bold uppercase tracking-widest text-[11px] shadow-lg shadow-orange-500/20 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed hover:opacity-90"
                                 >
                                     {processing ? 'Saving...' : 'Save Expense'}
                                 </button>

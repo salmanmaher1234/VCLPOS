@@ -114,7 +114,7 @@ export default function Notifications() {
             {/* Executive Summary Header */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 gap-8">
                 <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
-                    <div className="p-4 bg-blue-600 rounded-2xl shadow-lg shadow-blue-500/20">
+                    <div className="p-4 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] rounded-2xl shadow-lg shadow-orange-500/20">
                         <Bell className="w-8 h-8 text-white" />
                     </div>
                     <div>
@@ -125,7 +125,7 @@ export default function Notifications() {
                 <div className="flex gap-3 w-full md:w-auto">
                     <button
                         onClick={handleMarkAllRead}
-                        className="flex-1 md:px-6 py-3.5 bg-gray-50 dark:bg-gray-900 text-blue-600 dark:text-blue-400 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-transparent"
+                        className="flex-1 md:px-6 py-3.5 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-gradient-to-r hover:from-[#FF7d1f] hover:to-[#2b59ff] hover:text-white transition-all shadow-sm border border-transparent hover:shadow-lg hover:shadow-orange-500/20"
                     >
                         Acknowledge All
                     </button>
@@ -215,7 +215,7 @@ export default function Notifications() {
                                     {!notif.read && (
                                         <button
                                             onClick={() => handleMarkAsRead(notif.id)}
-                                            className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                            className="p-3 bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 rounded-xl hover:bg-gradient-to-r hover:from-[#FF7d1f] hover:to-[#2b59ff] hover:text-white transition-all shadow-sm"
                                             title="Mark as Read"
                                         >
                                             <CheckCircle className="w-5 h-5" />

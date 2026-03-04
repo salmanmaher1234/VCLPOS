@@ -73,7 +73,7 @@ export default function EmployeeShow() {
                     <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 dark:bg-blue-900/10 -mr-20 -mt-20 rounded-full blur-3xl opacity-50"></div>
 
                     <div className="flex flex-col md:flex-row items-center gap-10 relative">
-                        <div className="h-32 w-32 md:h-44 md:w-44 rounded-3xl bg-blue-600 flex items-center justify-center text-white text-5xl md:text-7xl font-bold shadow-xl shadow-blue-500/20">
+                        <div className="h-32 w-32 md:h-44 md:w-44 rounded-3xl bg-gradient-to-br from-[#FF7d1f] to-[#2b59ff] flex items-center justify-center text-white text-5xl md:text-7xl font-bold shadow-xl shadow-orange-500/20">
                             {employee.name.charAt(0)}
                         </div>
                         <div className="text-center md:text-left flex-1 space-y-4">
@@ -132,7 +132,7 @@ export default function EmployeeShow() {
                 </div>
 
                 {/* Performance Summary */}
-                <div className="bg-blue-600 rounded-3xl p-8 md:p-12 text-white relative overflow-hidden shadow-xl shadow-blue-500/10">
+                <div className="bg-gradient-to-br from-[#FF7d1f] to-[#2b59ff] rounded-3xl p-8 md:p-12 text-white relative overflow-hidden shadow-xl shadow-orange-500/20">
                     <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 -mr-20 -mt-20 rounded-full blur-3xl"></div>
                     <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-10">
                         <div className="space-y-2 text-center md:text-left">

@@ -215,9 +215,9 @@ const Receipt = () => {
                   <div class="receipt-info">
                     <span>DATE: ${new Date().toLocaleDateString()}</span>
                     <span>TIME: ${new Date().toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                    })}</span>
+                hour: "2-digit",
+                minute: "2-digit",
+            })}</span>
                   </div>
                   <div class="receipt-info">
                     <span>CASHIER: ${cashier}</span>
@@ -228,8 +228,8 @@ const Receipt = () => {
                 
                 <div class="receipt-items">
                   ${items
-                      .map(
-                          (item) => `
+                    .map(
+                        (item) => `
                     <div class="item-row">
                       <div class="item-name">
                         ${item.qty} × ${item.name}
@@ -238,12 +238,12 @@ const Receipt = () => {
                         )}</div>
                       </div>
                       <div class="item-price">$${(
-                          item.price * item.qty
-                      ).toFixed(2)}</div>
+                                item.price * item.qty
+                            ).toFixed(2)}</div>
                     </div>
                   `
-                      )
-                      .join("")}
+                    )
+                    .join("")}
                 </div>
                 
                 <div class="receipt-totals">
@@ -251,16 +251,15 @@ const Receipt = () => {
                     <span>Subtotal:</span>
                     <span>$${subtotal.toFixed(2)}</span>
                   </div>
-                  ${
-                      discount > 0
-                          ? `
+                  ${discount > 0
+                    ? `
                     <div class="total-row">
                       <span>Discount:</span>
                       <span style="color: red;">-$${discount.toFixed(2)}</span>
                     </div>
                   `
-                          : ""
-                  }
+                    : ""
+                }
                   <div class="total-row">
                     <span>Tax (${taxRate}%):</span>
                     <span>$${taxAmount.toFixed(2)}</span>
@@ -395,7 +394,7 @@ const Receipt = () => {
                             </button>
                             <button
                                 onClick={() => setShowReceiptPreview(true)}
-                                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
+                                className="px-6 py-3.5 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] flex items-center gap-2 transition-all shadow-lg shadow-orange-500/20 hover:opacity-90 active:scale-95"
                             >
                                 <span>👁️</span> Preview
                             </button>
@@ -734,17 +733,16 @@ const Receipt = () => {
                                                     onClick={() =>
                                                         setPaymentType(method)
                                                     }
-                                                    className={`py-3 text-sm font-bold rounded-xl border-2 transition-all ${
-                                                        paymentType === method
+                                                    className={`py-3 text-sm font-bold rounded-xl border-2 transition-all ${paymentType === method
                                                             ? "bg-gradient-to-r from-green-500 to-green-600 text-white border-green-600 shadow-lg"
                                                             : "bg-white text-slate-600 border-slate-300 hover:border-green-500 hover:shadow-md"
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {method === "Credit Card"
                                                         ? "💳"
                                                         : method === "Cash"
-                                                        ? "💵"
-                                                        : "🏦"}{" "}
+                                                            ? "💵"
+                                                            : "🏦"}{" "}
                                                     {method}
                                                 </button>
                                             )

@@ -17,7 +17,6 @@ import SalesList from "./pages/Sales";
 import SalesReturns from "./pages/SalesReturns"; // Renamed from Returns
 import POS from "./pages/POS";
 import Adjustments from "./pages/Adjustments";
-import Customers from "./pages/Customers";
 import Suppliers from "./pages/Suppliers";
 import ProfilePage from "./pages/ProfilePage";
 import PurchaseReturns from "./pages/PurchaseReturns";
@@ -112,12 +111,10 @@ export default function App() {
                 return { title: "POS System", activeItem: "POS System" };
             case "/adjustments":
                 return { title: "Adjustments", activeItem: "Adjustments" };
-            case "/customers":
-                return { title: "Add Customer", activeItem: "Customers" };
             case "/customer-details":
-                return { title: "Customer Details", activeItem: "Customer Details" };
+                return { title: "Customers Directory", activeItem: "Customers" };
             case (path.match(/\/customers\/\d+/) || {}).input:
-                return { title: "Customer Profile", activeItem: "Customer Details" };
+                return { title: "Customer Profile", activeItem: "Customers" };
             case "/suppliers":
                 return { title: "Suppliers", activeItem: "Suppliers" };
             case "/employees":
@@ -175,9 +172,6 @@ export default function App() {
             break;
         case "/adjustments":
             Component = Adjustments;
-            break;
-        case "/customers":
-            Component = Customers;
             break;
         case "/customer-details":
             Component = CustomerDetails;
