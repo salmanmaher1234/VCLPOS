@@ -82,6 +82,7 @@ Route::middleware('auth:sanctum')->get('/dashboard-data', function (Request $req
 Route::middleware('auth:sanctum')->apiResource('products', App\Http\Controllers\Api\ProductController::class);
 
 // Customers API
+Route::get('/customers/{id}/activity', [App\Http\Controllers\Api\CustomerController::class, 'activity'])->middleware('auth:sanctum');
 Route::middleware('auth:sanctum')->apiResource('customers', App\Http\Controllers\Api\CustomerController::class);
 
 // Suppliers API
@@ -110,3 +111,34 @@ Route::middleware('auth:sanctum')->apiResource('purchase-returns', App\Http\Cont
 
 // Purchases API (Supplier Stock In)
 Route::middleware('auth:sanctum')->apiResource('purchases', App\Http\Controllers\Api\PurchaseController::class);
+
+// Expenses API
+Route::get('/expense-categories', [App\Http\Controllers\Api\ExpenseController::class, 'categories'])->middleware('auth:sanctum');
+Route::middleware('auth:sanctum')->apiResource('expenses', App\Http\Controllers\Api\ExpenseController::class);
+
+// Employee Management API
+Route::middleware('auth:sanctum')->group(function () {
+    // Employee Management Routes
+    Route::apiResource('employees', App\Http\Controllers\Api\EmployeeController::class);
+    Route::post('/employees/clock-in-out', [App\Http\Controllers\Api\EmployeeController::class, 'clockInOut']);
+    Route::get('/employees-daily-attendance', [App\Http\Controllers\Api\EmployeeController::class, 'getDailyAttendance']);
+    Route::post('/employees-batch-attendance', [App\Http\Controllers\Api\EmployeeController::class, 'batchMarkAttendance']);
+    Route::get('/employees-attendance', [App\Http\Controllers\Api\EmployeeController::class, 'getAttendance']);
+    Route::put('/employees-attendance/{id}', [App\Http\Controllers\Api\EmployeeController::class, 'updateAttendance']);
+    Route::get('/employees-performance', [App\Http\Controllers\Api\EmployeeController::class, 'getPerformance']);
+    Route::post('/employees-performance', [App\Http\Controllers\Api\EmployeeController::class, 'updatePerformance']);
+    Route::get('/employees-stats', [App\Http\Controllers\Api\EmployeeController::class, 'getStats']);
+
+    // New Module Routes
+    Route::apiResource('employee-shifts', App\Http\Controllers\Api\ShiftController::class);
+    Route::get('/employee-leaves', [App\Http\Controllers\Api\LeaveController::class, 'index']);
+    Route::post('/employee-leaves', [App\Http\Controllers\Api\LeaveController::class, 'store']);
+    Route::put('/employee-leaves/{id}/status', [App\Http\Controllers\Api\LeaveController::class, 'updateStatus']);
+    
+    Route::get('/employee-payrolls', [App\Http\Controllers\Api\PayrollController::class, 'index']);
+    Route::post('/employee-payrolls/generate', [App\Http\Controllers\Api\PayrollController::class, 'generate']);
+    Route::put('/employee-payrolls/{id}/status', [App\Http\Controllers\Api\PayrollController::class, 'updateStatus']);
+    Route::put('/employee-payrolls/{id}/details', [App\Http\Controllers\Api\PayrollController::class, 'updateDetails']);
+    Route::get('/employee-activity-logs', [App\Http\Controllers\Api\EmployeeController::class, 'getActivityLogs']);
+    Route::post('/employees-attendance/mark', [App\Http\Controllers\Api\EmployeeController::class, 'markSingleAttendance']);
+});

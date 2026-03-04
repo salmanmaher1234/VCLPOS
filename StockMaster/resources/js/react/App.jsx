@@ -11,19 +11,51 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
+import Notifications from "./pages/Notifications";
 import Products from "./pages/Products";
-import Sales from "./pages/Sales";
-import Returns from "./pages/Returns";
+import SalesList from "./pages/Sales";
+import SalesReturns from "./pages/SalesReturns"; // Renamed from Returns
 import POS from "./pages/POS";
 import Adjustments from "./pages/Adjustments";
-import Customers from "./pages/Customers";
 import Suppliers from "./pages/Suppliers";
 import ProfilePage from "./pages/ProfilePage";
 import PurchaseReturns from "./pages/PurchaseReturns";
 import Purchases from "./pages/Purchases"; // NEW
+import Expenses from "./pages/Expenses";
+import Employees from "./pages/Employees";
+import EmployeeShow from "./pages/EmployeeShow";
+import CustomerDetails from "./pages/CustomerDetails";
+import CustomerShow from "./pages/CustomerShow";
 
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
+
+
+// Global Notification Helper (Final Robust version)
+window.addVclNotification = (notification) => {
+    try {
+        const saved = JSON.parse(localStorage.getItem('vcl_notifications') || '[]');
+        const now = new Date();
+        const newNotification = {
+            id: Date.now(),
+            timestamp: now.toISOString(), // Standard timestamp for sorting/filtering
+            time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            date: now.toISOString().split('T')[0],
+            read: false,
+            ...notification
+        };
+        const updated = [newNotification, ...saved].slice(0, 100);
+        localStorage.setItem('vcl_notifications', JSON.stringify(updated));
+
+        console.warn("🔔 SYSTEM NOTIFICATION:", newNotification.title, newNotification.message);
+
+        // Dispatch both standard and detail events for maximum compatibility
+        window.dispatchEvent(new Event('vcl-notification-added'));
+        window.dispatchEvent(new CustomEvent('vcl-notification-event', { detail: newNotification }));
+    } catch (e) {
+        console.error("❌ Notification Engine Error:", e);
+    }
+};
 
 export default function App() {
     const [path, setPath] = React.useState(window.location.pathname);
@@ -67,20 +99,28 @@ export default function App() {
                 return { title: "Products", activeItem: "Products" };
             case "/sales":
                 return { title: "Sales List", activeItem: "Sales List" };
-            case "/returns":
-                return { title: "Returns", activeItem: "Returns" };
+            case "/sales-returns": // Renamed route
+                return { title: "Sales Returns", activeItem: "Sales Returns" };
             case "/purchase-returns":
                 return { title: "Purchase Returns", activeItem: "Purchase Returns" };
             case "/purchases":
                 return { title: "Purchase Orders", activeItem: "Purchases" };
+            case "/expenses":
+                return { title: "Expenses", activeItem: "Expenses" };
             case "/pos":
                 return { title: "POS System", activeItem: "POS System" };
             case "/adjustments":
                 return { title: "Adjustments", activeItem: "Adjustments" };
-            case "/customers":
-                return { title: "Customers", activeItem: "Customers" };
+            case "/customer-details":
+                return { title: "Customers Directory", activeItem: "Customers" };
+            case (path.match(/\/customers\/\d+/) || {}).input:
+                return { title: "Customer Profile", activeItem: "Customers" };
             case "/suppliers":
                 return { title: "Suppliers", activeItem: "Suppliers" };
+            case "/employees":
+                return { title: "Employees", activeItem: "Employees" };
+            case (path.match(/\/employees\/\d+/) || {}).input:
+                return { title: "Staff Profile", activeItem: "Employees" };
             case "/profile":
                 return { title: "Profile", activeItem: "" };
             default:
@@ -113,10 +153,10 @@ export default function App() {
             Component = Products;
             break;
         case "/sales":
-            Component = Sales;
+            Component = SalesList;
             break;
-        case "/returns":
-            Component = Returns;
+        case "/sales-returns":
+            Component = SalesReturns;
             break;
         case "/purchase-returns":
             Component = PurchaseReturns;
@@ -124,17 +164,32 @@ export default function App() {
         case "/purchases":
             Component = Purchases;
             break;
+        case "/expenses":
+            Component = Expenses;
+            break;
         case "/pos":
             Component = POS;
             break;
         case "/adjustments":
             Component = Adjustments;
             break;
-        case "/customers":
-            Component = Customers;
+        case "/customer-details":
+            Component = CustomerDetails;
+            break;
+        case "/notifications":
+            Component = Notifications;
+            break;
+        case (currentPath.match(/\/customers\/\d+/) || {}).input:
+            Component = CustomerShow;
             break;
         case "/suppliers":
             Component = Suppliers;
+            break;
+        case "/employees":
+            Component = Employees;
+            break;
+        case (currentPath.match(/\/employees\/\d+/) || {}).input:
+            Component = EmployeeShow;
             break;
         case "/profile":
             Component = ProfilePage;

@@ -75,6 +75,14 @@ export default function Suppliers() {
                 setShowModal(false);
                 resetForm();
                 fetchSuppliers();
+                // Add Notification
+                if (window.addVclNotification) {
+                    window.addVclNotification({
+                        type: 'product', // or generic
+                        title: editingSupplier ? 'Supplier Profile Updated' : 'New Supplier Partner',
+                        message: `Contract details for "${formData.name}" have been ${editingSupplier ? 'synchronized' : 'registered'}.`
+                    });
+                }
                 setTimeout(() => setSuccessMessage(''), 3000);
             } else {
                 setErrors(data.errors || {});
@@ -100,6 +108,17 @@ export default function Suppliers() {
             if (response.ok) {
                 const data = await response.json();
                 setSuccessMessage(data.message);
+
+                // Add Notification
+                if (window.addVclNotification) {
+                    const supp = suppliers.find(s => s.id === id);
+                    window.addVclNotification({
+                        type: 'high_stock', // using existing icons
+                        title: 'Supplier Terminated',
+                        message: `Supplier relationship with "${supp?.name || id}" has been removed from the directory.`
+                    });
+                }
+
                 fetchSuppliers();
                 setTimeout(() => setSuccessMessage(''), 3000);
             }
@@ -161,7 +180,7 @@ export default function Suppliers() {
                             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Supplier List</h2>
                             <button
                                 onClick={openAddModal}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                className="px-6 py-2.5 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] hover:opacity-90 transition-all shadow-lg shadow-orange-500/20"
                             >
                                 Add Supplier
                             </button>
@@ -359,7 +378,7 @@ export default function Suppliers() {
                                         </button>
                                         <button
                                             type="submit"
-                                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                            className="px-6 py-2.5 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] hover:opacity-90 transition-all shadow-lg shadow-orange-500/20"
                                         >
                                             {editingSupplier ? 'Update' : 'Create'}
                                         </button>

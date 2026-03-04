@@ -174,6 +174,17 @@ export default function Purchases() {
 
             const data = await res.json();
             if (res.ok) {
+                // Add Notification
+                if (window.addVclNotification) {
+                    const supplierName = suppliers.find(s => s.id == selectedSupplier)?.name || 'Supplier';
+                    window.addVclNotification({
+                        type: 'payment',
+                        title: 'Stock Received (Purchase)',
+                        message: `Stock worth $${grandTotal.toFixed(2)} received from ${supplierName}.`,
+                        invoice: referenceNo || `#PUR-${data.id || Date.now()}`
+                    });
+                }
+
                 handleCloseModal();
                 fetchPurchases();
                 alert('Purchase Order created! Stock received.');
@@ -198,7 +209,7 @@ export default function Purchases() {
                 </div>
                 <button
                     onClick={() => setShowCreateModal(true)}
-                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-xl flex items-center gap-2 shadow-lg shadow-green-500/30 transition-all"
+                    className="bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] hover:opacity-90 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-orange-500/30 transition-all uppercase tracking-widest text-[11px]"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                     New Purchase
@@ -349,7 +360,7 @@ export default function Purchases() {
                                 />
                                 <button
                                     onClick={addItem}
-                                    className="bg-blue-600 text-white px-4 rounded-lg font-bold hover:bg-blue-700"
+                                    className="bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white px-6 py-2.5 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:opacity-90 transition-all shadow-lg shadow-orange-500/20"
                                 >
                                     Add
                                 </button>
@@ -398,7 +409,7 @@ export default function Purchases() {
                         <button
                             onClick={handleSubmit}
                             disabled={processing}
-                            className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-green-500/30 transition-all disabled:opacity-50"
+                            className="w-full mt-4 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-500/30 transition-all disabled:opacity-50 hover:opacity-90 uppercase tracking-widest text-[11px]"
                         >
                             {processing ? 'Processing...' : 'Save & Receive Stock'}
                         </button>

@@ -87,6 +87,17 @@ export default function Adjustments() {
 
             if (response.ok) {
                 setSuccessMessage(data.message);
+
+                // Add Notification
+                if (window.addVclNotification) {
+                    window.addVclNotification({
+                        type: 'low_stock',
+                        title: 'Stock Adjusted',
+                        message: `Stock level manually adjusted for ${formData.products.length} items.`,
+                        invoice: formData.reference
+                    });
+                }
+
                 setShowModal(false);
                 resetForm();
                 fetchAdjustments();
@@ -171,7 +182,7 @@ export default function Adjustments() {
                             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Adjustments List</h2>
                             <button
                                 onClick={() => { resetForm(); setShowModal(true); }}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                className="px-6 py-2.5 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] hover:opacity-90 transition-all shadow-lg shadow-orange-500/20"
                             >
                                 Create Adjustment
                             </button>
@@ -377,7 +388,7 @@ export default function Adjustments() {
                                     </button>
                                     <button
                                         type="submit"
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                        className="px-6 py-2.5 bg-gradient-to-r from-[#FF7d1f] to-[#2b59ff] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] hover:opacity-90 transition-all shadow-lg shadow-orange-500/20"
                                     >
                                         Create Adjustment
                                     </button>
